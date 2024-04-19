@@ -1,6 +1,4 @@
-
-
-# In this script we will provide the necessary steps for executing scripts in the eo repository. 
+# In this script we will provide the necessary steps for executing scripts in the eo repository.
 
 # Import core modules
 import os
@@ -24,7 +22,7 @@ def clone_repository(url, path, branch):
 def update_conda_environment(env_name, environment_file):
     """
     Updates the current conda environment based on the 
-    dependency requirements of external libraries. 
+    dependency requirements of external libraries.
     
     The update is done by passing the current conda 
     env and the path to the file containing a list of dependencies.
@@ -59,6 +57,6 @@ if __name__ == "__main__":
     clone_repository(url, path, branch)
 
     # Update current conda environment with dependencies required by Paseos
-    #env_name = 'interSatNet'
+    #env_name = 'eo'
     #environment_file = 'modules/paseos/environment.yml'
     #update_conda_environment(env_name, environment_file)
