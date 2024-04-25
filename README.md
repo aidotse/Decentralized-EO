@@ -1,9 +1,10 @@
 # Decentralized-EO
-In this project we explore decentralized learning for earth observation.     
+In this project we explore decentralized learning for earth observation. 
      
 The project is currently built with  
 - [Paseos](https://github.com/aidotse/PASEOS): A Python module that simulates the environment to operate multiple spacecraft.
-    
+- [LICOS](https://github.com/gomezzz/LICOS): A Python module for Learning Image Compression On board a Satellite constellation.
+
 <!-- GETTING STARTED -->
 
 ## Getting Started
@@ -27,11 +28,11 @@ cd Decentralized-EO
 conda env create -f environment.yml
 ```
 
-This will create a new conda environment called `eo` and install the required software packages.
+This will create a new conda environment called `licos` and install the required software packages.
 To activate the new environment, you can use:
 
 ```
-conda activate eo
+conda activate licos
 ```
 
 To update the environment after changes, you can use 
@@ -40,22 +41,20 @@ To update the environment after changes, you can use
 conda env update --file environment.yml --prune
 ```
 
-### Setup src code
-When installing dependencies, a local clone of the paseos repository will be installed from github and added to `modules`. 
-To clone the required repository and ensure a correct implementation, we recommend that you use
-
-```
-python setup.py
-```
-
+Furthermore, if you are using a non-ARM cpu architecture and want to use MPI, remember to remove the comment before `cudatoolkits` in the environment.yml file to include the right toolkit. 
 
 
 <!-- USAGE EXAMPLES -->
 
 ## Usage
 
-### A Minimal Example - (COMING SOON)
+### A Minimal Example -
 To run a minimal example of `Decentralized-EO`, we recommend that you use
+
 ```
-python ....
+cd licos
+mpiexec -n 0 python main.py
 ```
+
+### Training a mobileSAM for EO using WorldFloods data - COMING SOON
+...
