@@ -3,7 +3,8 @@ channels:
   - conda-forge
   - pytorch
 dependencies:
-  #- cudatoolkit     # not available on arm cpu acrhitecture. 
+  - paseos
+  #- cudatoolkit   # Not available for ARM based cpu architecture.
   - dotmap
   - ipykernel
   - ipywidgets
