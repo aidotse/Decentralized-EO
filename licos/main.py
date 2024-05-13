@@ -6,7 +6,7 @@ from pathlib import Path
 import toml
 from dotmap import DotMap
 import torch
-import numpy as np
+import numpy as np 
 import pykep as pk
 
 sys.path.append("../")  # needed until paseos is properly installed
@@ -31,8 +31,8 @@ def main(cfg):
     time_in_standby = 0
     time_since_last_update = 0
     total_simulation_time = 0
-    standby_period = 0 #900  # how long to standby if necessary
-    MPI_sync_period = 0 #600  # After how many seconds we wait synchronize instance clocks
+    standby_period = 900  # how long to standby if necessary
+    MPI_sync_period = 600  # After how many seconds we wait synchronize instance clocks
     cfg.save_path = get_savepath_str(cfg)
 
     plot = False
@@ -63,17 +63,17 @@ def main(cfg):
 
     print("Loading dataset...", flush=True)
     # Init training
-    (
-        net,
-        optimizer,
-        aux_optimizer,
-        criterion,
-        train_dataloader,
-        test_dataloader,
-        lr_scheduler,
-        last_epoch,
-        train_dataloader_iter,
-    ) = init_training(cfg, rank)
+    #(
+    #    net,
+    #    optimizer,
+    #    aux_optimizer,
+    #    criterion,
+    #    train_dataloader,
+    #    test_dataloader,
+    #    lr_scheduler,
+    #    last_epoch,
+    #    train_dataloader_iter,
+    #) = init_training(cfg, rank)
 
     print(f"Rank {rank} - Init training", flush=True)
     sys.stdout.flush()
@@ -91,27 +91,29 @@ def main(cfg):
     best_loss = float("inf")
     batch_idx = 0
     while total_simulation_time < cfg.simulation_time:
+
+        print(f"Total Simulation Time: {total_simulation_time}", flush = True)
         ################################################################################
         # Sync time between ranks to minimize divergence
         if (
             local_actor.local_time.mjd2000 * pk.DAY2SEC - time_of_last_sync
         ) > MPI_sync_period:
-            print(
-                f"Rank {rank} waiting for sync at t={local_actor.local_time}",
-                end=" ",
-                flush=True,
-            )
+            #print(
+            #    f"Rank {rank} waiting for sync at t={local_actor.local_time}",
+            #    end=" ",
+            #    flush=True,
+            #)
             _ = comm.allreduce(1, op=MPI.SUM)  # send one to indicate still running
             comm.Barrier()
-            print(f"Rank {rank} synced.", flush=True)
+            #print(f"Rank {rank} synced.", flush=True)
             time_of_last_sync = local_actor.local_time.mjd2000 * pk.DAY2SEC
 
         if batch_idx % 100 == 0:
-            print(
-                f"Rank {rank} - {str(paseos_instance.local_actor.local_time)} - Temperature[C]: "
-                + f"{local_actor.temperature_in_K - 273.15:.2f},"
-                + f"Battery SoC: {local_actor.state_of_charge:.2f}"
-            )
+            #print(
+            #    f"Rank {rank} - {str(paseos_instance.local_actor.local_time)} - Temperature[C]: "
+            #    + f"{local_actor.temperature_in_K - 273.15:.2f},"
+            #    + f"Battery SoC: {local_actor.state_of_charge:.2f}"
+            #)
             sys.stdout.flush()
             # print(f"PASEOS advancing time by {cfg.time_per_batch}s.")
 
@@ -132,12 +134,12 @@ def main(cfg):
         # B) Traing model on a batch
         # C) Standby to cool down / recharge
         if activity == "Model_update":
-            print(
-                f"Rank {rank} will update with GS "
-                + str(list(paseos_instance.known_actors.items())[0][0])
-                + " at "
-                + str(paseos_instance.local_actor.local_time)
-            )
+            #print(
+            #    f"Rank {rank} will update with GS "
+            #    + str(list(paseos_instance.known_actors.items())[0][0])
+            #    + " at "
+            #    + str(paseos_instance.local_actor.local_time)
+            #)
             # 1) Model comms in PASEOS (already know there is a window from decide on activity)
             perform_activity(
                 activity,
@@ -147,51 +149,51 @@ def main(cfg):
                 constraint_function,
             )
             # 2) Evaluate test set before exchanging models
-            print(f"Rank {rank} - Pre-aggregation test.")
-            loss, is_best, best_loss = eval_test_set(
-                rank,
-                optimizer,
-                batch_idx,
-                net,
-                criterion,
-                test_losses,
-                test_dataloader,
-                local_time_at_test,
-                paseos_instance,
-                lr_scheduler,
-                best_loss,
-            )
+            #print(f"Rank {rank} - Pre-aggregation test.")
+            #loss, is_best, best_loss = eval_test_set(
+            #    rank,
+            #    optimizer,
+            #    batch_idx,
+            #    net,
+            #    criterion,
+            #    test_losses,
+            #    test_dataloader,
+            #    local_time_at_test,
+            #    paseos_instance,
+            #    lr_scheduler,
+            #    best_loss,
+            #)
 
             # 3) Exchange models with the ground stations
-            update_central_model(
-                rank,
-                device,
-                batch_idx,
-                net,
-                loss,
-                best_loss,
-                paseos_instance._state.time,
-                cfg,
-            )
+            #update_central_model(
+            #    rank,
+            #    device,
+            #    batch_idx,
+            #    net,
+            #    loss,
+            #    best_loss,
+            #    paseos_instance._state.time,
+            #    cfg,
+            #)
             time_since_last_update = 0
 
             # 4) Evaluate test set after exchanging models
-            print(f"Rank {rank} - Post-aggregation test.")
-            loss, is_best, best_loss = eval_test_set(
-                rank,
-                optimizer,
-                batch_idx,
-                net,
-                criterion,
-                test_losses,
-                test_dataloader,
-                local_time_at_test,
-                paseos_instance,
-                lr_scheduler,
-                best_loss,
-            )
+            #print(f"Rank {rank} - Post-aggregation test.")
+            #loss, is_best, best_loss = eval_test_set(
+            #    rank,
+            #    optimizer,
+            #    batch_idx,
+            #    net,
+            #    criterion,
+            #    test_losses,
+            #    test_dataloader,
+            #    local_time_at_test,
+            #    paseos_instance,
+            #    lr_scheduler,
+            #    best_loss,
+            #)
             # Push the time of last step slightly beyond to be distinguishable in plots
-            local_time_at_test[-1] += 10
+            #local_time_at_test[-1] += 10
         elif activity == "Training":
             # 1) Model training cost in PASEOS
             perform_activity(
@@ -214,7 +216,7 @@ def main(cfg):
             #    batch_idx,
             #    cfg.clip_max_norm,
             #)
-            print("Simulating training one batch")
+            #print("Simulating training one batch")
             batch_idx += 1
         else:
             # 1) Model standby in PASEOS and do nothing :)
@@ -226,11 +228,11 @@ def main(cfg):
                 constraint_function,
             )
             time_since_last_update += cfg.time_per_batch
-            print(
-                f"Rank {rank} standing by - Temperature[C]: "
-                + f"{local_actor.temperature_in_K - 273.15:.2f},"
-                + f"Battery SoC: {local_actor.state_of_charge:.2f}"
-            )
+            #print(
+            #    f"Rank {rank} standing by - Temperature[C]: "
+            #    + f"{local_actor.temperature_in_K - 273.15:.2f},"
+            #    + f"Battery SoC: {local_actor.state_of_charge:.2f}"
+            #)
 
         if plot and batch_idx % 10 == 0 and rank == 0:
             plotter.update(paseos_instance)
@@ -242,16 +244,16 @@ def main(cfg):
     Path(cfg.save_path + "/").mkdir(parents=True, exist_ok=True)
     paseos_instance.save_status_log_csv(cfg.save_path + "/" + str(rank) + ".csv")
     create_plots(paseos_instances=[paseos_instance], cfg=cfg, rank=rank)
-    np.savetxt(
-        cfg.save_path + "/loss_rank" + str(rank) + ".csv",
-        np.array(test_losses),
-        delimiter=",",
-    )
-    np.savetxt(
-        cfg.save_path + "/time_at_loss_rank" + str(rank) + ".csv",
-        np.array(local_time_at_test),
-        delimiter=",",
-    )
+    #np.savetxt(
+    #    cfg.save_path + "/loss_rank" + str(rank) + ".csv",
+    #    np.array(test_losses),
+    #    delimiter=",",
+    #)
+    #np.savetxt(
+    #    cfg.save_path + "/time_at_loss_rank" + str(rank) + ".csv",
+    #    np.array(local_time_at_test),
+    #    delimiter=",",
+    #)
     toml.dump(cfg, open(cfg.save_path + "/cfg.toml", "w"))
 
     print(f"Rank {rank} waiting to finish.")
@@ -268,7 +270,7 @@ def main(cfg):
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         warnings.warn("Please pass the path to a cfg file. Using default cfg")
-        path = "../cfg/default_cfg.toml"
+        path = "../cfg/simulation_without_training_cfg.toml"
     else:
         path = sys.argv[1]
     if not os.path.exists(path):
