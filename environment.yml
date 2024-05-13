@@ -4,7 +4,7 @@ channels:
   - pytorch
 dependencies:
   - paseos
-  #- cudatoolkit   # Not available for ARM based cpu architecture.
+  - cudatoolkit   # Not available for ARM based cpu architecture.
   - dotmap
   - ipykernel
   - ipywidgets
