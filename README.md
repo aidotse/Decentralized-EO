@@ -49,11 +49,11 @@ Furthermore, if you are using a non-ARM cpu architecture and want to use MPI, re
 ## Usage
 
 ### A Minimal Example -
-To run a minimal example of `Decentralized-EO`, we recommend that you use
+To run a minimal example of `Decentralized-EO` simulating three satellites in orbit (see [LICOS](https://github.com/gomezzz/LICOS)), we recommend that you use
 
 ```
 cd licos
-mpiexec -n 0 python main.py
+mpiexec -n 3 python main.py
 ```
 
 ### Training a mobileSAM for EO using WorldFloods data - COMING SOON
