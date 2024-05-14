@@ -1,4 +1,4 @@
-name: licos
+name: decentralizedEO
 channels:
   - conda-forge
   - pytorch
@@ -24,6 +24,3 @@ dependencies:
   - torchvision
   - toml
   - tqdm
-  - pip
-  - pip:
-    - compressai
