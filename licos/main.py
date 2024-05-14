@@ -36,7 +36,7 @@ def main(cfg):
     cfg.save_path = get_savepath_str(cfg)
 
     plot = False
-    test_losses = []
+    #test_losses = []
     local_time_at_test = []
 
     def constraint_function():
@@ -88,7 +88,7 @@ def main(cfg):
 
     ################################################################################
     # Main Training loop
-    best_loss = float("inf")
+    #best_loss = float("inf")
     batch_idx = 0
     while total_simulation_time < cfg.simulation_time:
 
@@ -98,22 +98,22 @@ def main(cfg):
         if (
             local_actor.local_time.mjd2000 * pk.DAY2SEC - time_of_last_sync
         ) > MPI_sync_period:
-            #print(
-            #    f"Rank {rank} waiting for sync at t={local_actor.local_time}",
-            #    end=" ",
-            #    flush=True,
-            #)
+            print(
+                f"Rank {rank} waiting for sync at t={local_actor.local_time}",
+                end=" ",
+                flush=True,
+            )
             _ = comm.allreduce(1, op=MPI.SUM)  # send one to indicate still running
             comm.Barrier()
-            #print(f"Rank {rank} synced.", flush=True)
+            print(f"Rank {rank} synced.", flush=True)
             time_of_last_sync = local_actor.local_time.mjd2000 * pk.DAY2SEC
 
         if batch_idx % 100 == 0:
-            #print(
-            #    f"Rank {rank} - {str(paseos_instance.local_actor.local_time)} - Temperature[C]: "
-            #    + f"{local_actor.temperature_in_K - 273.15:.2f},"
-            #    + f"Battery SoC: {local_actor.state_of_charge:.2f}"
-            #)
+            print(
+                f"Rank {rank} - {str(paseos_instance.local_actor.local_time)} - Temperature[C]: "
+                + f"{local_actor.temperature_in_K - 273.15:.2f},"
+                + f"Battery SoC: {local_actor.state_of_charge:.2f}"
+            )
             sys.stdout.flush()
             # print(f"PASEOS advancing time by {cfg.time_per_batch}s.")
 
@@ -134,12 +134,12 @@ def main(cfg):
         # B) Traing model on a batch
         # C) Standby to cool down / recharge
         if activity == "Model_update":
-            #print(
-            #    f"Rank {rank} will update with GS "
-            #    + str(list(paseos_instance.known_actors.items())[0][0])
-            #    + " at "
-            #    + str(paseos_instance.local_actor.local_time)
-            #)
+            print(
+                f"Rank {rank} will update with GS "
+                + str(list(paseos_instance.known_actors.items())[0][0])
+                + " at "
+                + str(paseos_instance.local_actor.local_time)
+            )
             # 1) Model comms in PASEOS (already know there is a window from decide on activity)
             perform_activity(
                 activity,
@@ -149,7 +149,7 @@ def main(cfg):
                 constraint_function,
             )
             # 2) Evaluate test set before exchanging models
-            #print(f"Rank {rank} - Pre-aggregation test.")
+            print(f"Rank {rank} - Pre-aggregation test.")
             #loss, is_best, best_loss = eval_test_set(
             #    rank,
             #    optimizer,
@@ -178,7 +178,7 @@ def main(cfg):
             time_since_last_update = 0
 
             # 4) Evaluate test set after exchanging models
-            #print(f"Rank {rank} - Post-aggregation test.")
+            print(f"Rank {rank} - Post-aggregation test.")
             #loss, is_best, best_loss = eval_test_set(
             #    rank,
             #    optimizer,
@@ -216,7 +216,6 @@ def main(cfg):
             #    batch_idx,
             #    cfg.clip_max_norm,
             #)
-            #print("Simulating training one batch")
             batch_idx += 1
         else:
             # 1) Model standby in PASEOS and do nothing :)
@@ -228,11 +227,11 @@ def main(cfg):
                 constraint_function,
             )
             time_since_last_update += cfg.time_per_batch
-            #print(
-            #    f"Rank {rank} standing by - Temperature[C]: "
-            #    + f"{local_actor.temperature_in_K - 273.15:.2f},"
-            #    + f"Battery SoC: {local_actor.state_of_charge:.2f}"
-            #)
+            print(
+                f"Rank {rank} standing by - Temperature[C]: "
+                + f"{local_actor.temperature_in_K - 273.15:.2f},"
+                + f"Battery SoC: {local_actor.state_of_charge:.2f}"
+            )
 
         if plot and batch_idx % 10 == 0 and rank == 0:
             plotter.update(paseos_instance)
