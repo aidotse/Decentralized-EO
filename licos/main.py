@@ -193,7 +193,7 @@ def main(cfg):
             #    best_loss,
             #)
             # Push the time of last step slightly beyond to be distinguishable in plots
-            #local_time_at_test[-1] += 10
+            local_time_at_test[-1] += 10
         elif activity == "Training":
             # 1) Model training cost in PASEOS
             perform_activity(
