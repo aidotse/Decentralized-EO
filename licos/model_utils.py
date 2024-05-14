@@ -1,5 +1,5 @@
-from compressai.zoo import image_models
-from compressai.entropy_models import EntropyBottleneck
+#from compressai.zoo import image_models
+#from compressai.entropy_models import EntropyBottleneck
 from torch.nn import Conv2d, ConvTranspose2d
 
 
@@ -16,7 +16,7 @@ def get_model(model, pretrained, in_channels=3, quality=1):
     Returns:
         net: adapted model
     """
-    net = image_models[model](quality=quality, pretrained=pretrained)
+    #net = image_models[model](quality=quality, pretrained=pretrained)
     if model in [
         "bmshj2018-factorized",
         "bmshj2018-factorized-relu",

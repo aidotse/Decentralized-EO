@@ -7,8 +7,8 @@ from dotmap import DotMap
 import torch
 import torch.nn as nn
 
-from compressai.optimizers import net_aux_optimizer
-from compressai.zoo import image_models
+#from compressai.optimizers import net_aux_optimizer
+#from compressai.zoo import image_models
 
 from datetime import datetime
 
@@ -27,8 +27,8 @@ def get_savepath_str(cfg: DotMap) -> str:
         + cfg.model
         + "_qual="
         + str(cfg.model_quality)
-        + "_raw="
-        + cfg.raw_format
+        #+ "_raw="
+        #+ cfg.raw_format
         + "_seed="
         + str(cfg.seed)
         + "_t="
@@ -62,15 +62,15 @@ class CustomDataParallel(nn.DataParallel):
             return getattr(self.module, key)
 
 
-def configure_optimizers(net, cfg):
-    """Separate parameters for the main optimizer and the auxiliary optimizer.
-    Return two optimizers"""
-    conf = {
-        "net": {"type": "Adam", "lr": cfg.learning_rate},
-        "aux": {"type": "Adam", "lr": cfg.aux_learning_rate},
-    }
-    optimizer = net_aux_optimizer(net, conf)
-    return optimizer["net"], optimizer["aux"]
+#def configure_optimizers(net, cfg):
+#    """Separate parameters for the main optimizer and the auxiliary optimizer.
+#    Return two optimizers"""
+#    conf = {
+#        "net": {"type": "Adam", "lr": cfg.learning_rate},
+#        "aux": {"type": "Adam", "lr": cfg.aux_learning_rate},
+#    }
+#    optimizer = net_aux_optimizer(net, conf)
+#    return optimizer["net"], optimizer["aux"]
 
 
 def save_checkpoint(state, is_best, filename="checkpoint.pth.tar"):
@@ -122,7 +122,7 @@ def check_cfg(config):
         AssertionError: If any of the config entries are invalid or missing.
     """
     # Check if the model is valid
-    assert config["model"] in image_models.keys(), "Invalid model"
+    #assert config["model"] in image_models.keys(), "Invalid model"
 
     # Check if the dataset is specified
     assert config["dataset"], "Dataset is required"
@@ -183,8 +183,8 @@ def check_cfg(config):
     assert config.model_quality > 0 and config.model_quality < 9
 
     # Check raw values
-    assert config.raw_format in ["split", "merged"]
-    assert isinstance(config.use_raw_data, bool)
-    assert isinstance(config.raw_target_resolution_merged_m, float)
-    assert isinstance(config.raw_train_test_split, float)
-    assert config.raw_train_test_split >= 0 and config.raw_train_test_split <= 1.0
+    #assert config.raw_format in ["split", "merged"]
+    #assert isinstance(config.use_raw_data, bool)
+    #assert isinstance(config.raw_target_resolution_merged_m, float)
+    #assert isinstance(config.raw_train_test_split, float)
+    #assert config.raw_train_test_split >= 0 and config.raw_train_test_split <= 1.0

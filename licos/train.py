@@ -6,9 +6,9 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from compressai.zoo import image_models
-from compressai.datasets import ImageFolder
-from compressai.losses import RateDistortionLoss
+#from compressai.zoo import image_models
+#from compressai.datasets import ImageFolder
+#from compressai.losses import RateDistortionLoss
 
 from utils import AverageMeter, configure_optimizers
 from raw_image_folder import RawImageFolder
@@ -63,13 +63,13 @@ def init_training(cfg, rank):
             transform=validation_transforms,
             geographical_split_tolerance=cfg.raw_train_test_tolerance,
         )
-    else:
-        train_dataset = ImageFolder(
-            cfg.dataset, split="train", transform=train_transforms
-        )
-        validation_dataset = ImageFolder(
-            cfg.dataset, split="test", transform=validation_transforms
-        )
+    #else:
+    #    train_dataset = ImageFolder(
+    #        cfg.dataset, split="train", transform=train_transforms
+    #    )
+    #    validation_dataset = ImageFolder(
+    #        cfg.dataset, split="test", transform=validation_transforms
+    #    )
 
     device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu"
 
@@ -107,10 +107,10 @@ def init_training(cfg, rank):
                 in_channels=13,
                 quality=cfg.model_quality,
             )
-    else:
-        net = image_models[cfg.model](
-            quality=cfg.model_quality, pretrained=cfg.pretrained
-        )
+    #else:
+    #    net = image_models[cfg.model](
+    #        quality=cfg.model_quality, pretrained=cfg.pretrained
+    #    )
 
     net = net.to(device)
 
@@ -120,7 +120,7 @@ def init_training(cfg, rank):
 
     optimizer, aux_optimizer = configure_optimizers(net, cfg)
     lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min")
-    criterion = RateDistortionLoss(lmbda=cfg.lmbda)
+    #criterion = RateDistortionLoss(lmbda=cfg.lmbda)
 
     last_epoch = 0
     if cfg.checkpoint:  # load from previous checkpoint
@@ -136,7 +136,7 @@ def init_training(cfg, rank):
         net,
         optimizer,
         aux_optimizer,
-        criterion,
+        #criterion,
         train_dataloader,
         validation_dataloader,
         lr_scheduler,

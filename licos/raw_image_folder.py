@@ -4,7 +4,7 @@ from glob import glob
 from torch.utils.data import Dataset
 import numpy as np
 import rasterio
-from compressai.registry import register_dataset
+#from compressai.registry import register_dataset
 from torchvision import transforms
 from skimage import img_as_ubyte
 from raw_utils import (
@@ -19,7 +19,7 @@ from sklearn.model_selection import train_test_split
 from copy import deepcopy
 
 
-@register_dataset("RawImageFolder")
+#@register_dataset("RawImageFolder")
 class RawImageFolder(Dataset):
     """Raw images data loader.
 
