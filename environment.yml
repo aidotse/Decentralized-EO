@@ -6,6 +6,7 @@ dependencies:
   - paseos
   - cudatoolkit   # Not available for ARM based cpu architecture.
   - dotmap
+  - huggingface_hub # To download Worldfloods data from Hugging Face.
   - ipykernel
   - ipywidgets
   - loguru
@@ -24,3 +25,7 @@ dependencies:
   - torchvision
   - toml
   - tqdm
+  - pip  # Include pip to handle pip installations for modules that are not available with conda.
+  - pip:
+      - segment_anything
+      - timm
