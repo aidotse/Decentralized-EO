@@ -35,7 +35,7 @@ def main(cfg):
     MPI_sync_period = 600  # After how many seconds we wait synchronize instance clocks
     cfg.save_path = get_savepath_str(cfg)
 
-    plot = False
+    plot = True
     #test_losses = []
     local_time_at_test = []
 
