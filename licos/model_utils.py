@@ -44,6 +44,10 @@ def get_model(model, pretrained, in_channels=3, quality=1):
             output_padding=net.g_s[6].output_padding,
         )
 
+    elif model == "vit_t":
+        model_type = "vit_t"
+        sam_checkpoint = "./weights/mobile_sam.pt"
+
     else:
         raise ValueError("model: " + model + " not supported for raw data.")
     return net
