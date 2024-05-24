@@ -6,7 +6,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-#from compressai.zoo import image_models
+from compressai.zoo import image_models
 #from compressai.datasets import ImageFolder
 #from compressai.losses import RateDistortionLoss
 
@@ -14,16 +14,34 @@ from utils import AverageMeter, configure_optimizers
 from raw_image_folder import RawImageFolder
 from model_utils import get_model
 
+import os
+from segment_anything.utils.transforms import ResizeLongestSide
+import sys
+sys.path.append(os.path.expanduser('~/Decentralized-EO'))
+from mobile_sam import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
+import torch.nn as nn
+import numpy as np
+
+from mobile_sam import (
+    build_sam_vit_h,
+    build_sam_vit_l,
+    build_sam_vit_b,
+    build_sam_vit_t,
+    sam_model_registry,
+    SamAutomaticMaskGenerator,
+    SamPredictor
+)
+
+# Define the image_models dictionary using build functions
+image_models.update({
+    "vit_h": build_sam_vit_h,
+    "vit_l": build_sam_vit_l,
+    "vit_b": build_sam_vit_b,
+    "vit_t": build_sam_vit_t,
+})
 
 def init_training(cfg, rank):
-    """Initializes training
-
-    Args:
-        cfg (dict): Config of the run
-
-    Returns:
-        net,optimizer,aux_optimizer,criterion,train_dataloader,test_dataloader,lr_scheduler,last_epoch
-    """
+    from test_main import SatelliteTileDataset, custom_collate_fn
 
     if cfg.seed is not None:
         torch.manual_seed(cfg.seed)
@@ -34,45 +52,13 @@ def init_training(cfg, rank):
         [transforms.RandomCrop(cfg.patch_size), transforms.ToTensor()]
     )
 
-    validation_transforms = transforms.Compose(
-        [transforms.CenterCrop(cfg.patch_size), transforms.ToTensor()]
-    )
-
-    if cfg.use_raw_data:
-        train_dataset = RawImageFolder(
-            root=cfg.dataset,
-            seed=cfg.seed,
-            test_over_total_percentage=cfg.raw_test_over_tot,
-            valid_over_train_percentage=cfg.raw_validation_over_train,
-            raw_format=cfg.raw_format,
-            target_resolution_merged_m=cfg.raw_target_resolution_merged_m,
-            preloaded=cfg.preloaded,
-            split="train",
-            transform=train_transforms,
-            geographical_split_tolerance=cfg.raw_train_test_tolerance,
-        )
-        validation_dataset = RawImageFolder(
-            root=cfg.dataset,
-            seed=cfg.seed,
-            test_over_total_percentage=cfg.raw_test_over_tot,
-            valid_over_train_percentage=cfg.raw_validation_over_train,
-            raw_format=cfg.raw_format,
-            target_resolution_merged_m=cfg.raw_target_resolution_merged_m,
-            preloaded=cfg.preloaded,
-            split="validation",
-            transform=validation_transforms,
-            geographical_split_tolerance=cfg.raw_train_test_tolerance,
-        )
-    #else:
-    #    train_dataset = ImageFolder(
-    #        cfg.dataset, split="train", transform=train_transforms
-    #    )
-    #    validation_dataset = ImageFolder(
-    #        cfg.dataset, split="test", transform=validation_transforms
-    #    )
+    #validation_transforms = transforms.Compose(
+    #    [transforms.CenterCrop(cfg.patch_size), transforms.ToTensor()]
+    #)
 
     device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu"
 
+    train_dataset = SatelliteTileDataset(data_dir='./tests/tiles/train', tile_list_file='train_tile_list.pkl')
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=cfg.batch_size,
@@ -80,18 +66,35 @@ def init_training(cfg, rank):
         shuffle=True,
         pin_memory=(device == "cuda:" + str(rank)),
         pin_memory_device=device,
+        collate_fn=custom_collate_fn
     )
 
     train_dataloader_iter = iter(train_dataloader)
 
-    validation_dataloader = DataLoader(
-        validation_dataset,
-        batch_size=cfg.test_batch_size,
-        num_workers=cfg.num_workers,
-        shuffle=False,
-        pin_memory=(device == "cuda:" + str(rank)),
-        pin_memory_device=device,
-    )
+    model_type = cfg.model  # Use model type from configuration
+    sam_checkpoint = "../weights/mobile_sam.pt"
+    mobile_sam = image_models[model_type](checkpoint=sam_checkpoint)
+    mobile_sam.to(device=device)
+    mobile_sam.train()
+
+    optimizer, aux_optimizer = configure_optimizers(mobile_sam, cfg)
+    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min")
+    criterion = nn.MSELoss()
+
+    last_epoch = 0
+    if cfg.checkpoint:  # load from previous checkpoint
+        print("Loading", cfg.checkpoint)
+        checkpoint = torch.load(cfg.checkpoint, map_location=device)
+        last_epoch = checkpoint["epoch"] + 1
+        mobile_sam.load_state_dict(checkpoint["state_dict"])
+        optimizer.load_state_dict(checkpoint["optimizer"])
+        aux_optimizer.load_state_dict(checkpoint["aux_optimizer"])
+        lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
+
+    transform = ResizeLongestSide(mobile_sam.image_encoder.img_size)
+
+    device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu"
+
     if cfg.use_raw_data:
         if cfg.raw_format == "split":
             net = get_model(
@@ -107,42 +110,43 @@ def init_training(cfg, rank):
                 in_channels=13,
                 quality=cfg.model_quality,
             )
-    #else:
-    #    net = image_models[cfg.model](
-    #        quality=cfg.model_quality, pretrained=cfg.pretrained
-    #    )
+    else:
+        net = mobile_sam
 
     net = net.to(device)
 
-    # if cfg.cuda and torch.cuda.device_count() > 1:
-    #     print("Using multiple device CustomDataParallel")
-    #     net = CustomDataParallel(net)
+    if cfg.cuda and torch.cuda.device_count() > 1:
+         print("Using multiple device CustomDataParallel")
+         net = CustomDataParallel(net)
 
     optimizer, aux_optimizer = configure_optimizers(net, cfg)
     lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min")
-    #criterion = RateDistortionLoss(lmbda=cfg.lmbda)
-
-    last_epoch = 0
-    if cfg.checkpoint:  # load from previous checkpoint
-        print("Loading", cfg.checkpoint)
-        checkpoint = torch.load(cfg.checkpoint, map_location=device)
-        last_epoch = checkpoint["epoch"] + 1
-        net.load_state_dict(checkpoint["state_dict"])
-        optimizer.load_state_dict(checkpoint["optimizer"])
-        aux_optimizer.load_state_dict(checkpoint["aux_optimizer"])
-        lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
 
     return (
-        net,
+        mobile_sam,
         optimizer,
         aux_optimizer,
-        #criterion,
+        criterion,
         train_dataloader,
-        validation_dataloader,
+        None, # placeholder for val_dataloader
         lr_scheduler,
         last_epoch,
         train_dataloader_iter,
+        transform,
+        device,
     )
+
+def configure_optimizers(model, cfg):
+    optimizer_params = [
+        {"params": [p for p in model.parameters() if p.requires_grad]},
+    ]
+
+    ## Debugging statement to check optimizer parameters
+    #print(f"Optimizer parameters: {optimizer_params}")
+
+    optimizer = torch.optim.Adam(optimizer_params, lr=cfg.lr)
+    aux_optimizer = torch.optim.Adam(optimizer_params, lr=cfg.aux_lr)
+    return optimizer, aux_optimizer
 
 
 def train_one_batch(
@@ -155,59 +159,88 @@ def train_one_batch(
     aux_optimizer,
     batch_idx,
     clip_max_norm,
+    transform,
+    device,
 ):
     """Trains the model on one batch
 
     Args:
         rank (int): Rank index
         model (torch.model): model to train
-        criterion (): Loss criteration, see compressai docs
+        criterion (): Loss criterion, see compressai docs
         train_dataloader (torch.dataloader): loader for training data
         train_dataloader_iter (iterator): current iterator on the loader
         optimizer (torch.optimizer): optimizer for gradients
         aux_optimizer (torch.optimizer): auxiliary loss optimizer
         batch_idx (int): index of current batch
         clip_max_norm (): gradient clipping thingy
+        transform: Transformation function
+        device: Device to use for training
 
     Returns:
         iterator: the updated training data loader
     """
+    
+    print("Training one batch...")
+
     model.train()
     device = next(model.parameters()).device
 
     try:
-        d = next(train_dataloader_iter)
+        satellite_tile_hw_batch, bbox_batch, ground_truth_tile_batch = next(train_dataloader_iter)
     except StopIteration:
         # StopIteration is thrown if dataset ends
         # reinitialize data loader
         train_dataloader_iter = iter(train_dataloader)
-        d = next(train_dataloader_iter)
+        satellite_tile_hw_batch, bbox_batch, ground_truth_tile_batch = next(train_dataloader_iter)
 
-    d = d.to(device)
-    optimizer.zero_grad()
-    aux_optimizer.zero_grad()
-    # print("Training data shape=", d.shape)
-    out_net = model(d)
+    for j in range(len(satellite_tile_hw_batch)):
+        satellite_tile_hw = satellite_tile_hw_batch[j].numpy()
+        bbox = bbox_batch[j]
+        ground_truth_tile = ground_truth_tile_batch[j].numpy()
 
-    out_criterion = criterion(out_net, d)
-    out_criterion["loss"].backward()
-    if clip_max_norm > 0:
-        torch.nn.utils.clip_grad_norm_(model.parameters(), clip_max_norm)
-    optimizer.step()
+        input_image = transform.apply_image(satellite_tile_hw)            
+        input_image_torch = torch.as_tensor(input_image, device=device).permute(2, 0, 1).contiguous().unsqueeze(0)
+        input_image = model.preprocess(input_image_torch)
+        original_image_size = satellite_tile_hw.shape[:2]
+        input_size = tuple(input_image_torch.shape[2:4])
 
-    aux_loss = model.aux_loss()
-    aux_loss.backward()
-    aux_optimizer.step()
+        bbox_np = np.array(bbox)
+        if bbox_np.size == 4:
+            bbox_np = bbox_np.reshape(1, 4)
+
+        box = transform.apply_boxes(bbox_np, original_image_size)
+        box_torch = torch.tensor(box, dtype=torch.float, device=device).unsqueeze(0)
+
+        with torch.no_grad():
+            image_embedding = model.image_encoder(input_image)
+            sparse_embeddings, dense_embeddings = model.prompt_encoder(
+                points=None,
+                boxes=box_torch,
+                masks=None,
+            )
+
+        low_res_masks, _ = model.mask_decoder(
+            image_embeddings=image_embedding,
+            image_pe=model.prompt_encoder.get_dense_pe(),
+            sparse_prompt_embeddings=sparse_embeddings,
+            dense_prompt_embeddings=dense_embeddings,
+            multimask_output=True,
+        )
+
+        upscaled_masks = model.postprocess_masks(low_res_masks, input_size, original_image_size).to(device)
+        binary_mask = torch.sigmoid(upscaled_masks)
+
+        gt_mask_resized = torch.from_numpy(np.resize(ground_truth_tile, (1, 1, ground_truth_tile.shape[0], ground_truth_tile.shape[1]))).to(device)
+        gt_binary_mask = torch.as_tensor(gt_mask_resized > 0, dtype=torch.float32, device=device)
+
+        loss = criterion(binary_mask, gt_binary_mask)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
     if batch_idx % 100 == 0:
-        print(
-            f"Rank {rank} - "
-            f"Training batch {batch_idx}: ["
-            f'Loss: {out_criterion["loss"].item():.3f} |'
-            f'MSE loss: {out_criterion["mse_loss"].item():.3f} |'
-            f'Bpp loss: {out_criterion["bpp_loss"].item():.2f} |'
-            f"Aux loss: {aux_loss.item():.2f}"
-        )
+        print(f"Rank {rank} - Training batch {batch_idx}: Loss: {loss.item():.3f}")
 
     return train_dataloader_iter
 
