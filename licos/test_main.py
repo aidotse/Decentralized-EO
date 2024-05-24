@@ -36,6 +36,9 @@ import argparse
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
+from train import train_one_batch, init_training, eval_test_set
+
+
 sys.path.append("../")  # needed until paseos is properly installed
 import paseos
 
@@ -141,6 +144,21 @@ def main(cfg):
 
     print("Loading dataset...", flush=True)
 
+    #Init training
+    (
+        net,
+        optimizer,
+        aux_optimizer,
+        criterion,
+        train_dataloader,
+        _, #place holder for val loader
+        lr_scheduler,
+        last_epoch,
+        train_dataloader_iter,
+        transform,
+        device
+    ) = init_training(cfg, rank)
+
     print(f"Rank {rank} - Init training", flush=True)
     sys.stdout.flush()
 
@@ -156,7 +174,7 @@ def main(cfg):
     mobile_sam = initialize_model(device)
     transform = ResizeLongestSide(mobile_sam.image_encoder.img_size)
 
-    train_dataset = SatelliteTileDataset(data_dir='../data_preparation/tiles/train', tile_list_file='train_tile_list.pkl')
+    train_dataset = SatelliteTileDataset(data_dir='./tests/tiles/train', tile_list_file='train_tile_list.pkl')
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4, collate_fn=custom_collate_fn)
 
     optimizer = Adam(mobile_sam.mask_decoder.parameters(), lr=1e-4, weight_decay=0)
@@ -202,74 +220,11 @@ def main(cfg):
             time_since_last_update,
         )
 
-        ################################################################################
-        # Perform  what was the decided on first in paseos and than on the rank, either
-        # A) Exchange model with ground
-        # B) Traing model on a batch
-        # C) Standby to cool down / recharge
-        if activity == "Model_update":
-            print(
-                f"Rank {rank} will update with GS "
-                + str(list(paseos_instance.known_actors.items())[0][0])
-                + " at "
-                + str(paseos_instance.local_actor.local_time)
-            )
-            # 1) Model comms in PASEOS (already know there is a window from decide on activity)
-            perform_activity(
-                activity,
-                power_consumption,
-                paseos_instance,
-                cfg.time_for_comms,
-                constraint_function,
-            )
-            # 2) Evaluate test set before exchanging models
-            print(f"Rank {rank} - Pre-aggregation test.")
-            #loss, is_best, best_loss = eval_test_set(
-            #    rank,
-            #    optimizer,
-            #    batch_idx,
-            #    net,
-            #    criterion,
-            #    test_losses,
-            #    test_dataloader,
-            #    local_time_at_test,
-            #    paseos_instance,
-            #    lr_scheduler,
-            #    best_loss,
-            #)
-
-            # 3) Exchange models with the ground stations
-            #update_central_model(
-            #    rank,
-            #    device,
-            #    batch_idx,
-            #    net,
-            #    loss,
-            #    best_loss,
-            #    paseos_instance._state.time,
-            #    cfg,
-            #)
-            time_since_last_update = 0
-
-            # 4) Evaluate test set after exchanging models
-            print(f"Rank {rank} - Post-aggregation test.")
-            #loss, is_best, best_loss = eval_test_set(
-            #    rank,
-            #    optimizer,
-            #    batch_idx,
-            #    net,
-            #    criterion,
-            #    test_losses,
-            #    test_dataloader,
-            #    local_time_at_test,
-            #    paseos_instance,
-            #    lr_scheduler,
-            #    best_loss,
-            #)
-            # Push the time of last step slightly beyond to be distinguishable in plots
-            local_time_at_test[-1] += 10
+        activity = "Training"
+        power_consumption = 30  # As defined in the "Training" return value
+        time_in_standby = 0 
            
-        elif activity == "Training":
+        if activity == "Training":
             # 1) Model training cost in PASEOS
             perform_activity(
                 activity,
@@ -279,59 +234,32 @@ def main(cfg):
                 constraint_function,
             )
             time_since_last_update += cfg.time_per_batch
+            # 2) Train model on one batch
+            train_dataloader_iter = train_one_batch(
+                rank,
+                net,
+                criterion,
+                train_dataloader,
+                train_dataloader_iter,
+                optimizer,
+                aux_optimizer,
+                batch_idx,
+                cfg.clip_max_norm,
+                transform,
+                device
+            )
             batch_idx += 1            
         
-            # Fine-tune the model
-            train_dataset.tile_list = train_dataset.load_tiles() 
-
-            # Training loop
-            for satellite_tile_hw_batch, bbox_batch, ground_truth_tile_batch in train_loader:
-                for j in range(len(satellite_tile_hw_batch)):
-                    satellite_tile_hw = satellite_tile_hw_batch[j].numpy()
-                    bbox = bbox_batch[j]
-                    ground_truth_tile = ground_truth_tile_batch[j].numpy()
-
-                    input_image = transform.apply_image(satellite_tile_hw)            
-                    input_image_torch = torch.as_tensor(input_image, device=device).permute(2, 0, 1).contiguous().unsqueeze(0)
-                    input_image = mobile_sam.preprocess(input_image_torch)
-                    original_image_size = satellite_tile_hw.shape[:2]
-                    input_size = tuple(input_image_torch.shape[2:4])
-
-                    bbox_np = np.array(bbox)
-                    if bbox_np.size == 4:
-                        bbox_np = bbox_np.reshape(1, 4)
-
-                    box = transform.apply_boxes(bbox_np, original_image_size)
-                    box_torch = torch.tensor(box, dtype=torch.float, device=device).unsqueeze(0)
-
-                    with torch.no_grad():
-                        image_embedding = mobile_sam.image_encoder(input_image)
-                        sparse_embeddings, dense_embeddings = mobile_sam.prompt_encoder(
-                            points=None,
-                            boxes=box_torch,
-                            masks=None,
-                        )
-
-                    low_res_masks, _ = mobile_sam.mask_decoder(
-                        image_embeddings=image_embedding,
-                        image_pe=mobile_sam.prompt_encoder.get_dense_pe(),
-                        sparse_prompt_embeddings=sparse_embeddings,
-                        dense_prompt_embeddings=dense_embeddings,
-                        multimask_output=True,
-                    )
-
-                    upscaled_masks = mobile_sam.postprocess_masks(low_res_masks, input_size, original_image_size).to(device)
-                    binary_mask = torch.sigmoid(upscaled_masks)
-
-                    gt_mask_resized = torch.from_numpy(np.resize(ground_truth_tile, (1, 1, ground_truth_tile.shape[0], ground_truth_tile.shape[1]))).to(device)
-                    gt_binary_mask = torch.as_tensor(gt_mask_resized > 0, dtype=torch.float32, device=device)
-
-                    loss = loss_fn(binary_mask, gt_binary_mask)
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step()
-    
-            print(f'EPOCH: {num_epochs}, Mean training loss: {loss.item()}')
+            if batch_idx % 100 == 0:
+                print(
+                    f"Rank {rank} - "
+                    f"Training batch {batch_idx}: ["
+                    f"Loss: {loss.item():.3f}"
+                    f'Loss: {out_criterion["loss"].item():.3f} |'
+                    f'MSE loss: {out_criterion["mse_loss"].item():.3f} |'
+                    f'Bpp loss: {out_criterion["bpp_loss"].item():.2f} |'
+                    #f"Aux loss: {aux_loss.item():.2f}"
+                )
 
         else:
             # 1) Model standby in PASEOS and do nothing :)
