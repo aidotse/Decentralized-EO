@@ -20,6 +20,12 @@ from init_paseos import init_paseos
 from actor_logic import constraint_func, decide_on_activity, perform_activity
 from utils import get_savepath_str
 
+
+import time
+sys.path.append("..") # to get the root directory
+time_per_batch_list = []
+time_per_comms_list = []
+
 # From fine_tune.py
 import os
 import pickle
@@ -37,9 +43,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 from train import train_one_batch, init_training, eval_test_set
+from federation_utils import update_central_model
 
-
-sys.path.append("../")  # needed until paseos is properly installed
 import paseos
 
 # Argument parser setup
@@ -118,6 +123,7 @@ def main(cfg):
     cfg.save_path = get_savepath_str(cfg)
 
     plot = True
+    test_losses = []
     local_time_at_test = []
 
     def constraint_function():
@@ -183,6 +189,7 @@ def main(cfg):
     num_epochs = 1
 
     # Simulation loop
+    best_loss = float("inf")
     batch_idx = 0
     while total_simulation_time < cfg.simulation_time:
 
@@ -220,11 +227,83 @@ def main(cfg):
             time_since_last_update,
         )
 
-        activity = "Training"
-        power_consumption = 30  # As defined in the "Training" return value
-        time_in_standby = 0 
-           
-        if activity == "Training":
+        activity = "Model_update"
+        #power_consumption = 30  # As defined in the "Training" return value
+        #time_in_standby = 0 
+
+        ################################################################################
+        # Perform  what was the decided on first in paseos and than on the rank, either
+        # A) Exchange model with ground
+        # B) Traing model on a batch
+        # C) Standby to cool down / recharge
+        if activity == "Model_update":
+            #print(
+            #    f"Rank {rank} will update with GS "
+            #    + str(list(paseos_instance.known_actors.items())[0][0])
+            #    + " at "
+            #    + str(paseos_instance.local_actor.local_time)
+            #)
+            # 1) Model comms in PASEOS (already know there is a window from decide on activity)
+            perform_activity(
+                activity,
+                power_consumption,
+                paseos_instance,
+                cfg.time_for_comms,
+                constraint_function,
+            )
+
+            start = time.time()
+            # 2) Evaluate test set before exchanging models
+            print(f"Rank {rank} - Pre-aggregation test.")
+            loss, is_best, best_loss = eval_test_set(
+                rank,
+                optimizer,
+                batch_idx,
+                net,
+                criterion,
+                test_losses,
+                train_dataloader,
+                local_time_at_test,
+                paseos_instance,
+                lr_scheduler,
+                best_loss,
+            )
+
+            # 3) Exchange models with the ground stations
+            update_central_model(
+                rank,
+                device,
+                batch_idx,
+                net,
+                loss,
+                best_loss,
+                paseos_instance._state.time,
+                cfg,
+            )
+            time_since_last_update = 0
+
+            # 4) Evaluate test set after exchanging models
+            print(f"Rank {rank} - Post-aggregation test.")
+            loss, is_best, best_loss = eval_test_set(
+                rank,
+                optimizer,
+                batch_idx,
+                net,
+                criterion,
+                test_losses,
+                train_dataloader,
+                local_time_at_test,
+                paseos_instance,
+                lr_scheduler,
+                best_loss,
+            )
+            end = time.time()
+            time_per_comms_list.append(end - start)
+
+            # Push the time of last step slightly beyond to be distinguishable in plots
+            local_time_at_test[-1] += 10
+
+        elif activity == "Training":
             # 1) Model training cost in PASEOS
             perform_activity(
                 activity,
@@ -235,6 +314,7 @@ def main(cfg):
             )
             time_since_last_update += cfg.time_per_batch
             # 2) Train model on one batch
+            start = time.time()
             train_dataloader_iter = train_one_batch(
                 rank,
                 net,
@@ -248,6 +328,8 @@ def main(cfg):
                 transform,
                 device
             )
+            end = time.time()
+            time_per_batch_list.append(end - start)
             batch_idx += 1            
         
             if batch_idx % 100 == 0:
@@ -288,9 +370,25 @@ def main(cfg):
     paseos_instance.save_status_log_csv(cfg.save_path + "/" + str(rank) + ".csv")
     create_plots(paseos_instances=[paseos_instance], cfg=cfg, rank=rank)  
 
+    print(f"Rank {rank} waiting to finish.")
+    np.savetxt(
+        cfg.save_path + "/loss_rank" + str(rank) + ".csv",
+        np.array(test_losses),
+        delimiter=",",
+    )
+    np.savetxt(
+        cfg.save_path + "/time_at_loss_rank" + str(rank) + ".csv",
+        np.array(local_time_at_test),
+        delimiter=",",
+    )
+    np.savetxt(
+        cfg.save_path + "/time_per_comms_list" + ".csv",
+        np.array(time_per_batch_list),
+        delimiter=",",
+    )
+    
     toml.dump(cfg, open(cfg.save_path + "/cfg.toml", "w"))
 
-    print(f"Rank {rank} waiting to finish.")
 
     # Send 0 as sign that we are finished
     # Wait until all ranks are finished
@@ -306,7 +404,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         warnings.warn("Please pass the path to a cfg file. Using default cfg")
         #path = "../cfg/simulation_without_training_cfg.toml"
-        path = "../cfg/default_cfg.toml"
+        path = "../cfg/mobile_sam_with_training.toml"
     else:
         path = sys.argv[1]
     if not os.path.exists(path):
