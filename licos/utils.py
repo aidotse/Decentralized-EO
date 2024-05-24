@@ -7,7 +7,7 @@ from dotmap import DotMap
 import torch
 import torch.nn as nn
 
-#from compressai.optimizers import net_aux_optimizer
+from compressai.optimizers import net_aux_optimizer
 #from compressai.zoo import image_models
 
 from datetime import datetime
@@ -62,15 +62,15 @@ class CustomDataParallel(nn.DataParallel):
             return getattr(self.module, key)
 
 
-#def configure_optimizers(net, cfg):
-#    """Separate parameters for the main optimizer and the auxiliary optimizer.
-#    Return two optimizers"""
-#    conf = {
-#        "net": {"type": "Adam", "lr": cfg.learning_rate},
-#        "aux": {"type": "Adam", "lr": cfg.aux_learning_rate},
-#    }
-#    optimizer = net_aux_optimizer(net, conf)
-#    return optimizer["net"], optimizer["aux"]
+def configure_optimizers(net, cfg):
+    """Separate parameters for the main optimizer and the auxiliary optimizer.
+    Return two optimizers"""
+    conf = {
+        "net": {"type": "Adam", "lr": cfg.learning_rate},
+        "aux": {"type": "Adam", "lr": cfg.aux_learning_rate},
+    }
+    optimizer = net_aux_optimizer(net, conf)
+    return optimizer["net"], optimizer["aux"]
 
 
 def save_checkpoint(state, is_best, filename="checkpoint.pth.tar"):
