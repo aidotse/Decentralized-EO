@@ -29,7 +29,7 @@ from matplotlib.patches import Rectangle
 
 # Command-line arguments
 parser = argparse.ArgumentParser(description="Process WorldFloods data")
-parser.add_argument('--dst_path', type=str, default='../data_preparation/tiles', help='Root directory to save processed tiles')
+parser.add_argument('--dst_path', type=str, default='../licos/tests/tiles', help='Root directory to save processed tiles')
 parser.add_argument('--tile_size', type=int, default=256, help='Size of each tile (pixels)')
 parser.add_argument('--dataset', type=str, default='train', help='Dataset to process from Hugging Face: train or val')
 parser.add_argument('--sample_size', type=str, default=1, help='Maximum number of tiles to extract from each input satellite image')
