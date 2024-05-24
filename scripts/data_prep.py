@@ -32,7 +32,8 @@ parser = argparse.ArgumentParser(description="Process WorldFloods data")
 parser.add_argument('--dst_path', type=str, default='../licos/tests/tiles', help='Root directory to save processed tiles')
 parser.add_argument('--tile_size', type=int, default=256, help='Size of each tile (pixels)')
 parser.add_argument('--dataset', type=str, default='train', help='Dataset to process from Hugging Face: train or val')
-parser.add_argument('--sample_size', type=str, default=1, help='Maximum number of tiles to extract from each input satellite image')
+#parser.add_argument('--sample_size', type=str, default=1, help='Maximum number of tiles to extract from each input satellite image')
+parser.add_argument('--sample_size', type=str, default=50, help='Maximum number of tiles to extract from each input satellite image')
 parser.add_argument('--visualise', action='store_true', help='Visualise the tiles and bounding box')
 
 args = parser.parse_args()
@@ -50,7 +51,9 @@ def download_and_process_data(dataset_type: str):
             base_name = os.path.basename(file)
             s2_equivalent = file.replace("/gt/", "/S2/")
             path_pairs[base_name] = {'gt': file, 's2': s2_equivalent}
-            if len(path_pairs) == 5:  # Limit to the first 5 pairs
+            #if len(path_pairs) == 1:  # Limit to the first pair of images
+            #    break
+            if len(path_pairs) == 3:  # 3 pairs of S2 and GT images
                 break
     
     # Information: count the number of GT and S2 files
@@ -110,7 +113,7 @@ def process_tile_data(s2_path, gt_path, dst_path):
                 filtered_regions = [region for region in regions if (region.bbox[2] - region.bbox[0] >= 20) and (region.bbox[3] - region.bbox[1] >= 20)]
                 # Only use tiles which contain exactly one bounding box (one water body)
                 if len(filtered_regions) == 1:
-                    sample_size = args.sample_size
+                    sample_size = int(args.sample_size)
                     if saved_tiles < sample_size: # Saving only X tiles from each input satellite image (to ensure the training dataset is sufficiently small to load on the satellite)
                         region = filtered_regions[0]
                         minr, minc, maxr, maxc = region.bbox
@@ -122,7 +125,7 @@ def process_tile_data(s2_path, gt_path, dst_path):
                         nir_band = satellite_tile[7]
                         ndwi = (green_band - nir_band) / (green_band + nir_band + 1e-10)
 
-                        print("Shape of satellite data:", satellite_tile.shape)
+                        #print("Shape of satellite data:", satellite_tile.shape)
 
                         # Add NDWI as an additional band
                         satellite_tile = np.vstack([satellite_tile, ndwi[np.newaxis, :, :]])
@@ -149,7 +152,7 @@ def process_tile_data(s2_path, gt_path, dst_path):
                         s2_tile_filename = os.path.join(dst_path, f"S2_tile_{base_filename}_{x}_{y}.tif")
                         gt_tile_filename = os.path.join(dst_path, f"GT_tile_{base_filename}_{x}_{y}.tif")
                         
-                        print("Shape of satellite data:", satellite_tile.shape)
+                        #print("Shape of satellite data:", satellite_tile.shape)
                         with rasterio.open(s2_tile_filename, 'w', driver='GTiff', 
                                         height=satellite_tile.shape[1], width=satellite_tile.shape[2],
                                         count=satellite_tile.shape[0], dtype=np.uint8) as dst:
