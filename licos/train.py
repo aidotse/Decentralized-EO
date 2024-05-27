@@ -47,18 +47,11 @@ def init_training(cfg, rank):
         torch.manual_seed(cfg.seed)
         random.seed(cfg.seed)
 
-    # Training Setup
-    train_transforms = transforms.Compose(
-        [transforms.RandomCrop(cfg.patch_size), transforms.ToTensor()]
-    )
-
-    #validation_transforms = transforms.Compose(
-    #    [transforms.CenterCrop(cfg.patch_size), transforms.ToTensor()]
-    #)
-
+    # Get training device
     device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu"
 
-    train_dataset = SatelliteTileDataset(data_dir='./tests/tiles/train', tile_list_file='train_tile_list.pkl')
+    # Load train dataset
+    train_dataset = SatelliteTileDataset(data_dir='./tests/tiles/rank_'+str(rank), tile_list_file='train_tile_list.pkl')
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=cfg.batch_size,
@@ -68,14 +61,28 @@ def init_training(cfg, rank):
         pin_memory_device=device,
         collate_fn=custom_collate_fn
     )
-
     train_dataloader_iter = iter(train_dataloader)
 
+    # Load test dataset
+    test_dataset = SatelliteTileDataset(data_dir='./tests/tiles/test', tile_list_file='test_tile_list.pkl')
+    test_dataloader = DataLoader(
+        test_dataset,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.num_workers,
+        shuffle=False,
+        pin_memory=(device == "cuda:" + str(rank)),
+        pin_memory_device=device,
+        collate_fn=custom_collate_fn
+    )
+
+    # Initialize model
     model_type = cfg.model  # Use model type from configuration
     sam_checkpoint = "../weights/mobile_sam.pt"
     mobile_sam = image_models[model_type](checkpoint=sam_checkpoint)
+
+    # Assign model to device (either GPU device if cuda is available, or CPU thread).
     mobile_sam.to(device=device)
-    mobile_sam.train()
+    #mobile_sam.train()
 
     optimizer, aux_optimizer = configure_optimizers(mobile_sam, cfg)
     lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min")
@@ -93,47 +100,17 @@ def init_training(cfg, rank):
 
     transform = ResizeLongestSide(mobile_sam.image_encoder.img_size)
 
-    device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu"
-
-    if cfg.use_raw_data:
-        if cfg.raw_format == "split":
-            net = get_model(
-                model=cfg.model,
-                pretrained=cfg.pretrained,
-                in_channels=1,
-                quality=cfg.model_quality,
-            )
-        else:
-            net = get_model(
-                model=cfg.model,
-                pretrained=cfg.pretrained,
-                in_channels=13,
-                quality=cfg.model_quality,
-            )
-    else:
-        net = mobile_sam
-
-    net = net.to(device)
-
-    if cfg.cuda and torch.cuda.device_count() > 1:
-         print("Using multiple device CustomDataParallel")
-         net = CustomDataParallel(net)
-
-    optimizer, aux_optimizer = configure_optimizers(net, cfg)
-    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min")
-
     return (
         mobile_sam,
         optimizer,
         aux_optimizer,
         criterion,
         train_dataloader,
-        None, # placeholder for val_dataloader
+        test_dataloader, # placeholder for val_dataloader
         lr_scheduler,
         last_epoch,
         train_dataloader_iter,
-        transform,
-        device,
+        transform
     )
 
 def configure_optimizers(model, cfg):
@@ -149,51 +126,7 @@ def configure_optimizers(model, cfg):
     return optimizer, aux_optimizer
 
 
-def train_one_batch(
-    rank,
-    model,
-    criterion,
-    train_dataloader,
-    train_dataloader_iter: DataLoader,
-    optimizer,
-    aux_optimizer,
-    batch_idx,
-    clip_max_norm,
-    transform,
-    device,
-):
-    """Trains the model on one batch
-
-    Args:
-        rank (int): Rank index
-        model (torch.model): model to train
-        criterion (): Loss criterion, see compressai docs
-        train_dataloader (torch.dataloader): loader for training data
-        train_dataloader_iter (iterator): current iterator on the loader
-        optimizer (torch.optimizer): optimizer for gradients
-        aux_optimizer (torch.optimizer): auxiliary loss optimizer
-        batch_idx (int): index of current batch
-        clip_max_norm (): gradient clipping thingy
-        transform: Transformation function
-        device: Device to use for training
-
-    Returns:
-        iterator: the updated training data loader
-    """
-    
-    print("Training one batch...")
-
-    model.train()
-    device = next(model.parameters()).device
-
-    try:
-        satellite_tile_hw_batch, bbox_batch, ground_truth_tile_batch = next(train_dataloader_iter)
-    except StopIteration:
-        # StopIteration is thrown if dataset ends
-        # reinitialize data loader
-        train_dataloader_iter = iter(train_dataloader)
-        satellite_tile_hw_batch, bbox_batch, ground_truth_tile_batch = next(train_dataloader_iter)
-
+def dataloader_manager(device, model, transform, satellite_tile_hw_batch, bbox_batch, ground_truth_tile_batch):
     for j in range(len(satellite_tile_hw_batch)):
         satellite_tile_hw = satellite_tile_hw_batch[j].numpy()
         bbox = bbox_batch[j]
@@ -234,15 +167,69 @@ def train_one_batch(
         gt_mask_resized = torch.from_numpy(np.resize(ground_truth_tile, (1, 1, ground_truth_tile.shape[0], ground_truth_tile.shape[1]))).to(device)
         gt_binary_mask = torch.as_tensor(gt_mask_resized > 0, dtype=torch.float32, device=device)
 
-        loss = criterion(binary_mask, gt_binary_mask)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        return binary_mask, gt_binary_mask
+
+
+def train_one_batch(
+    rank,
+    model,
+    criterion,
+    train_dataloader,
+    train_dataloader_iter: DataLoader,
+    optimizer,
+    aux_optimizer,
+    batch_idx,
+    clip_max_norm,
+    transform
+):
+    """Trains the model on one batch
+
+    Args:
+        rank (int): Rank index
+        model (torch.model): model to train
+        criterion (): Loss criterion, see compressai docs
+        train_dataloader (torch.dataloader): loader for training data
+        train_dataloader_iter (iterator): current iterator on the loader
+        optimizer (torch.optimizer): optimizer for gradients
+        aux_optimizer (torch.optimizer): auxiliary loss optimizer
+        batch_idx (int): index of current batch
+        clip_max_norm (): gradient clipping thingy
+        transform: Transformation function
+        device: Device to use for training
+
+    Returns:
+        iterator: the updated training data loader
+    """
+    
+    print("Training one batch...")
+
+    model.train()
+    device = next(model.parameters()).device
+
+    try:
+        satellite_tile_hw_batch, bbox_batch, ground_truth_tile_batch = next(train_dataloader_iter)
+
+    except StopIteration:
+        # StopIteration is thrown if dataset ends
+        # reinitialize data loader
+        train_dataloader_iter = iter(train_dataloader)
+        satellite_tile_hw_batch, bbox_batch, ground_truth_tile_batch = next(train_dataloader_iter)
+
+    # Get model prediction and ground truth
+    binary_mask, gt_binary_mask = dataloader_manager(device, model, transform, satellite_tile_hw_batch, bbox_batch, ground_truth_tile_batch)
+    binary_mask = binary_mask.to(device)
+    gt_binary_mask = gt_binary_mask.to(device)
+
+    # Calculate loss and update model parmaters
+    loss = criterion(binary_mask, gt_binary_mask)
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
 
     if batch_idx % 100 == 0:
         print(f"Rank {rank} - Training batch {batch_idx}: Loss: {loss.item():.3f}")
 
-    return train_dataloader_iter
+    return train_dataloader_iter, loss.item()
 
 
 def train_one_epoch(
@@ -292,7 +279,7 @@ def train_one_epoch(
             )
 
 
-def test_epoch(rank, epoch, test_dataloader, model, criterion):
+def test_epoch(rank, epoch, test_dataloader, model, criterion, transform):
     """Test the model
 
     Args:
@@ -308,32 +295,24 @@ def test_epoch(rank, epoch, test_dataloader, model, criterion):
     model.eval()
     device = next(model.parameters()).device
 
-    loss = AverageMeter()
-    bpp_loss = AverageMeter()
-    mse_loss = AverageMeter()
-    aux_loss = AverageMeter()
-
     with torch.no_grad():
-        for d in test_dataloader:
-            d = d.to(device)
-            out_net = model(d)
-            out_criterion = criterion(out_net, d)
 
-            aux_loss.update(model.aux_loss())
-            bpp_loss.update(out_criterion["bpp_loss"])
-            loss.update(out_criterion["loss"])
-            mse_loss.update(out_criterion["mse_loss"])
+        # Get model prediction and ground truth
+        satellite_tile_hw_batch, bbox_batch, ground_truth_tile_batch = next(iter(test_dataloader))
+        binary_mask, gt_binary_mask = dataloader_manager(device, model, transform, satellite_tile_hw_batch, bbox_batch, ground_truth_tile_batch)
+        binary_mask = binary_mask.to(device)
+        gt_binary_mask = gt_binary_mask.to(device)
+
+        # Calculate loss and update model parmaters
+        loss = criterion(binary_mask, gt_binary_mask)
 
     print(
         f"Rank {rank} - "
         f"Test epoch {epoch}: Average losses:"
-        f"\tLoss: {loss.avg:.3f} |"
-        f"\tMSE loss: {mse_loss.avg:.3f} |"
-        f"\tBpp loss: {bpp_loss.avg:.2f} |"
-        f"\tAux loss: {aux_loss.avg:.2f}\n"
+        f"\tLoss: {loss:.3f} |\n"
     )
 
-    return loss.avg
+    return loss
 
 
 def eval_test_set(
@@ -348,6 +327,7 @@ def eval_test_set(
     paseos_instance,
     lr_scheduler,
     best_loss,
+    transform
 ):
     """Evaluate the set
 
@@ -370,7 +350,7 @@ def eval_test_set(
     # print(f"Rank {rank} - Evaluating test set")
     # print(f"Rank {rank} - Previous learning rate: {optimizer.param_groups[0]['lr']}")
     # start = time.time()
-    loss = test_epoch(rank, batch_idx, test_dataloader, net, criterion)
+    loss = test_epoch(rank, batch_idx, test_dataloader, net, criterion, transform)
     test_losses.append(loss.item())
     local_time_at_test.append(paseos_instance._state.time)
     # print(f"Rank {rank} - Test evaluation took {time.time() - start}s")

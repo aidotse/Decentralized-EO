@@ -55,7 +55,7 @@ parser.add_argument('--visualise', action='store_true', help='Visualise the tile
 args = parser.parse_args()
 
 # Set device
-device = args.device if torch.cuda.is_available() or args.device == 'cpu' else 'cpu'
+#device = args.device if torch.cuda.is_available() or args.device == 'cpu' else 'cpu'
 
 # Parse selected bands
 if args.selected_bands == 'RGB':
@@ -99,13 +99,13 @@ def custom_collate_fn(batch):
     ground_truth_tiles = torch.stack([torch.from_numpy(tile) for tile in ground_truth_tiles])
     return satellite_tiles, list(bboxes), ground_truth_tiles
 
-def initialize_model(device):
-    model_type = "vit_t"
-    sam_checkpoint = "../weights/mobile_sam.pt"
-    mobile_sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
-    mobile_sam.to(device=device)
-    mobile_sam.train()
-    return mobile_sam
+#def initialize_model(device):
+#    model_type = "vit_t"
+#    sam_checkpoint = "../weights/mobile_sam.pt"
+#    mobile_sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
+#    mobile_sam.to(device=device)
+#    mobile_sam.train()
+#    return mobile_sam
 
 def main(cfg):
     # Init
@@ -123,6 +123,7 @@ def main(cfg):
 
     plot = True
     test_losses = []
+    train_losses = []
     local_time_at_test = []
 
     def constraint_function():
@@ -148,7 +149,6 @@ def main(cfg):
         os.remove(cfg.save_path + ".pth.tar")
 
     print("Loading dataset...", flush=True)
-
     #Init training
     (
         net,
@@ -156,12 +156,11 @@ def main(cfg):
         aux_optimizer,
         criterion,
         train_dataloader,
-        _, #place holder for val loader
+        test_dataloader, #place holder for val loader
         lr_scheduler,
         last_epoch,
         train_dataloader_iter,
-        transform,
-        device
+        transform
     ) = init_training(cfg, rank)
 
     print(f"Rank {rank} - Init training", flush=True)
@@ -170,29 +169,21 @@ def main(cfg):
     # Init paseos
     paseos_instance, local_actor, groundstations = init_paseos(rank, comm.Get_size())
     time_of_last_sync = local_actor.local_time.mjd2000 * pk.DAY2SEC
+    
     print(f"Rank {rank} - Init PASEOS", flush=True)
+    sys.stdout.flush()
 
     if plot and rank == 0:
         plotter = paseos.plot(paseos_instance, paseos.PlotType.SpacePlot)
     
-    # Initialize model and data loaders for fine-tuning
-    mobile_sam = initialize_model(device)
-    transform = ResizeLongestSide(mobile_sam.image_encoder.img_size)
 
-    train_dataset = SatelliteTileDataset(data_dir='./tests/tiles/train', tile_list_file='train_tile_list.pkl')
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4, collate_fn=custom_collate_fn)
-
-    optimizer = Adam(mobile_sam.mask_decoder.parameters(), lr=1e-4, weight_decay=0)
-    loss_fn = nn.MSELoss()
-
-    num_epochs = 1
-
+    ################################################################################
     # Simulation loop
     best_loss = float("inf")
     batch_idx = 0
     while total_simulation_time < cfg.simulation_time:
-
         print(f"Total Simulation Time: {total_simulation_time}", flush = True)
+
         ################################################################################
         # Sync time between ranks to minimize divergence
         if (
@@ -226,15 +217,16 @@ def main(cfg):
             time_since_last_update,
         )
 
-        activity = "Training"
-        #power_consumption = 30  # As defined in the "Training" return value
-        #time_in_standby = 0 
 
         ################################################################################
         # Perform  what was the decided on first in paseos and than on the rank, either
         # A) Exchange model with ground
         # B) Traing model on a batch
         # C) Standby to cool down / recharge
+
+        if total_simulation_time == 19:
+            activity = "Model_update"
+
         if activity == "Model_update":
             #print(
             #    f"Rank {rank} will update with GS "
@@ -260,11 +252,12 @@ def main(cfg):
                 net,
                 criterion,
                 test_losses,
-                train_dataloader,
+                test_dataloader,
                 local_time_at_test,
                 paseos_instance,
                 lr_scheduler,
                 best_loss,
+                transform,
             )
 
             # 3) Exchange models with the ground stations
@@ -289,11 +282,12 @@ def main(cfg):
                 net,
                 criterion,
                 test_losses,
-                train_dataloader,
+                test_dataloader,
                 local_time_at_test,
                 paseos_instance,
                 lr_scheduler,
                 best_loss,
+                transform,
             )
 
             # Push the time of last step slightly beyond to be distinguishable in plots
@@ -311,7 +305,7 @@ def main(cfg):
             time_since_last_update += cfg.time_per_batch
             # 2) Train model on one batch
             start = time.time()
-            train_dataloader_iter = train_one_batch(
+            train_dataloader_iter, train_loss = train_one_batch(
                 rank,
                 net,
                 criterion,
@@ -321,23 +315,12 @@ def main(cfg):
                 aux_optimizer,
                 batch_idx,
                 cfg.clip_max_norm,
-                transform,
-                device
+                transform
             )
             end = time.time()
             time_per_batch_list.append(end - start)
+            train_losses.append(train_loss)
             batch_idx += 1            
-        
-            if batch_idx % 100 == 0:
-                print(
-                    f"Rank {rank} - "
-                    f"Training batch {batch_idx}: ["
-                    f"Loss: {loss.item():.3f}"
-                    f'Loss: {out_criterion["loss"].item():.3f} |'
-                    f'MSE loss: {out_criterion["mse_loss"].item():.3f} |'
-                    f'Bpp loss: {out_criterion["bpp_loss"].item():.2f} |'
-                    #f"Aux loss: {aux_loss.item():.2f}"
-                )
 
         else:
             # 1) Model standby in PASEOS and do nothing :)
@@ -370,6 +353,11 @@ def main(cfg):
     np.savetxt(
         cfg.save_path + "/loss_rank" + str(rank) + ".csv",
         np.array(test_losses),
+        delimiter=",",
+    )
+    np.savetxt(
+        cfg.save_path + "/loss_rank_training" + str(rank) + ".csv",
+        np.array(train_losses),
         delimiter=",",
     )
     np.savetxt(
