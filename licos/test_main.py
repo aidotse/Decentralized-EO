@@ -24,7 +24,6 @@ from utils import get_savepath_str
 import time
 sys.path.append("..") # to get the root directory
 time_per_batch_list = []
-time_per_comms_list = []
 
 # From fine_tune.py
 import os
@@ -132,7 +131,7 @@ def main(cfg):
     paseos.set_log_level("INFO")
     device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu"
 
-    # Init MPI
+    # Init MPIr
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     other_ranks = [x for x in range(comm.Get_size()) if x != rank]
@@ -227,7 +226,7 @@ def main(cfg):
             time_since_last_update,
         )
 
-        activity = "Model_update"
+        activity = "Training"
         #power_consumption = 30  # As defined in the "Training" return value
         #time_in_standby = 0 
 
@@ -252,7 +251,6 @@ def main(cfg):
                 constraint_function,
             )
 
-            start = time.time()
             # 2) Evaluate test set before exchanging models
             print(f"Rank {rank} - Pre-aggregation test.")
             loss, is_best, best_loss = eval_test_set(
@@ -297,8 +295,6 @@ def main(cfg):
                 lr_scheduler,
                 best_loss,
             )
-            end = time.time()
-            time_per_comms_list.append(end - start)
 
             # Push the time of last step slightly beyond to be distinguishable in plots
             local_time_at_test[-1] += 10
@@ -382,7 +378,7 @@ def main(cfg):
         delimiter=",",
     )
     np.savetxt(
-        cfg.save_path + "/time_per_comms_list" + ".csv",
+        cfg.save_path + "/time_per_batch_training" + ".csv",
         np.array(time_per_batch_list),
         delimiter=",",
     )
