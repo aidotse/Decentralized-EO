@@ -5,7 +5,7 @@ model = "vit_t"
 dataset = "tests/tiles"
 
 # Simulation runtime in seconds
-simulation_time = 20
+simulation_time = 86400.0
 
 # Learning rate
 #learning_rate = 1e-4
@@ -43,10 +43,10 @@ seed = 42
 checkpoint = ""
 
 # Time needed for communications in seconds
-time_for_comms = 60.0
+time_for_comms = 3.88
 
 # estimated time per batch in seconds
-time_per_batch = 1.0
+time_per_batch = 8.532207639593826
 
 # Save all the models over time
 save_checkpoints_over_time = true
