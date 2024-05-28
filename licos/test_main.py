@@ -130,7 +130,12 @@ def main(cfg):
         return constraint_func(paseos_instance, groundstations)
 
     paseos.set_log_level("INFO")
-    device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu"
+    #device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu"
+
+    if torch.cuda.is_available():
+        device = torch.device("cuda:" + str(rank))
+    else:
+        device = "cpu"
 
     # Init MPIr
     comm = MPI.COMM_WORLD
@@ -382,13 +387,10 @@ def main(cfg):
 
     print(f"Rank {rank} finished.")  
 
-        #total_simulation_time += cfg.time_per_batch
-
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         warnings.warn("Please pass the path to a cfg file. Using default cfg")
-        #path = "../cfg/simulation_without_training_cfg.toml"
-        path = "../cfg/mobile_sam_with_training.toml"
+        path = "../cfg/mobile_sam_sim_gpu.toml"
     else:
         path = sys.argv[1]
     if not os.path.exists(path):

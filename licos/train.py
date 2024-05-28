@@ -48,7 +48,12 @@ def init_training(cfg, rank):
         random.seed(cfg.seed)
 
     # Get training device
-    device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu"
+    #device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu"
+    
+    if torch.cuda.is_available():
+        device = torch.device("cuda:" + str(rank))
+    else:
+        device = "cpu"
 
     # Load train dataset
     train_dataset = SatelliteTileDataset(data_dir='./tests/tiles/rank_'+str(rank), tile_list_file='train_tile_list.pkl')
