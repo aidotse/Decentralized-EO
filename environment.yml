@@ -17,6 +17,7 @@ dependencies:
   - python=3.10
   - pytorch
   - rasterio 
+  - seaborn
   - scipy
   - scikit-image
   - scikit-learn
