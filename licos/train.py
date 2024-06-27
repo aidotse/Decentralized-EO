@@ -126,8 +126,8 @@ def configure_optimizers(model, cfg):
     ## Debugging statement to check optimizer parameters
     #print(f"Optimizer parameters: {optimizer_params}")
 
-    optimizer = torch.optim.Adam(optimizer_params, lr=cfg.lr)
-    aux_optimizer = torch.optim.Adam(optimizer_params, lr=cfg.aux_lr)
+    optimizer = torch.optim.Adam(optimizer_params, lr=cfg.learning_rate)
+    aux_optimizer = torch.optim.Adam(optimizer_params, lr=cfg.aux_learning_rate)
     return optimizer, aux_optimizer
 
 
@@ -184,7 +184,6 @@ def train_one_batch(
     optimizer,
     aux_optimizer,
     batch_idx,
-    clip_max_norm,
     transform
 ):
     """Trains the model on one batch
@@ -198,7 +197,6 @@ def train_one_batch(
         optimizer (torch.optimizer): optimizer for gradients
         aux_optimizer (torch.optimizer): auxiliary loss optimizer
         batch_idx (int): index of current batch
-        clip_max_norm (): gradient clipping thingy
         transform: Transformation function
         device: Device to use for training
 

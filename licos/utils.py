@@ -25,10 +25,6 @@ def get_savepath_str(cfg: DotMap) -> str:
     return (
         "results/"
         + cfg.model
-        + "_qual="
-        + str(cfg.model_quality)
-        #+ "_raw="
-        #+ cfg.raw_format
         + "_seed="
         + str(cfg.seed)
         + "_t="
@@ -136,12 +132,6 @@ def check_cfg(config):
     # Check if the learning rate is positive
     assert config["learning_rate"] > 0, "Learning rate must be positive"
 
-    # Check if the num workers are non-negative
-    assert config["num_workers"] >= 0, "Num workers must be non-negative"
-
-    # Check if the lambda is positive
-    assert config["lambda"] > 0, "Lambda must be positive"
-
     # Check if the batch size is positive
     assert config["batch_size"] > 0, "Batch size must be positive"
 
@@ -150,11 +140,6 @@ def check_cfg(config):
 
     # Check if the aux learning rate is positive
     assert config["aux_learning_rate"] > 0, "Aux learning rate must be positive"
-
-    # Check if the patch size has two elements and they are both positive
-    assert len(config["patch_size"]) == 2 and all(
-        x > 0 for x in config["patch_size"]
-    ), "Patch size must have two positive elements"
 
     # Check if cuda is a boolean value
     assert isinstance(config["cuda"], bool), "Cuda must be a boolean value"
@@ -178,13 +163,3 @@ def check_cfg(config):
             ".pt",
             ".pth",
         ], f"Checkpoint {config['checkpoint']} has an invalid extension"
-
-    # Check model quality values
-    assert config.model_quality > 0 and config.model_quality < 9
-
-    # Check raw values
-    #assert config.raw_format in ["split", "merged"]
-    #assert isinstance(config.use_raw_data, bool)
-    #assert isinstance(config.raw_target_resolution_merged_m, float)
-    #assert isinstance(config.raw_train_test_split, float)
-    #assert config.raw_train_test_split >= 0 and config.raw_train_test_split <= 1.0

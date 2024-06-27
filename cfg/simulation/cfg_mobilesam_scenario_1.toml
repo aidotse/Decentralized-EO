@@ -1,3 +1,6 @@
+# Scenario 1: Default FL 
+# In this scenario we evaluate the latency when considering a system of 8 satellites in sentinel-2 orbit capturing data and training onboard, with 3 ground stations federating the model.
+
 # Model architecture
 model = "vit_t"
 
@@ -8,14 +11,7 @@ dataset = "tests/tiles"
 simulation_time = 86400.0
 
 # Learning rate
-#learning_rate = 1e-4
-lr = 1e-5
-
-# Dataloaders threads
-num_workers = 1
-
-# Bit-rate distortion parameter
-lmbda = 1e-2
+learning_rate = 1e-5
 
 # Batch size
 batch_size = 16
@@ -24,11 +20,7 @@ batch_size = 16
 test_batch_size = 64
 
 # Auxiliary loss learning rate
-#aux_learning_rate = 1e-3
-aux_lr = 1e-3
-
-# Size of the patches to be cropped
-patch_size = [256, 256]
+aux_learning_rate = 1e-3
 
 # Use cuda
 cuda = true
@@ -43,19 +35,10 @@ seed = 42
 checkpoint = ""
 
 # Time needed for communications in seconds
-time_for_comms = 3.88
+time_for_comms = 3.88    # Computed based on model size and downlink speed (10 Mbit/sec). 
 
 # estimated time per batch in seconds
-time_per_batch = 8.532207639593826
+time_per_batch = 8.532207639593826    # Benchmark performance using the CPU on the Unibap IX10-100 device profiling the function train_one_batch. (To be updated with GPU performance)
 
 # Save all the models over time
 save_checkpoints_over_time = true
-
-# Quality value for the model, 1 to 8
-model_quality = 1
-
-# Whether to use raw data
-use_raw_data = false
-
-# Gradient clipping max norm
-clip_max_norm = 1.0
