@@ -5,7 +5,7 @@ model = "vit_t"
 dataset = "tests/tiles"
 
 # Simulation runtime in seconds
-simulation_time = 86400.0
+simulation_time = 604800
 
 # Learning rate
 #learning_rate = 1e-4
@@ -25,7 +25,7 @@ test_batch_size = 64
 
 # Auxiliary loss learning rate
 #aux_learning_rate = 1e-3
-aux_lr = 1e-3
+aux_lr = 1e-5
 
 # Size of the patches to be cropped
 patch_size = [256, 256]
@@ -37,7 +37,7 @@ cuda = true
 save = true
 
 # Set random seed for reproducibility
-seed = 42
+seed = 46
 
 # Path to a checkpoint
 checkpoint = ""
