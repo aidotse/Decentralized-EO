@@ -32,6 +32,8 @@ from mobile_sam import (
     SamPredictor
 )
 
+print(f"CUDA available: {torch.cuda.is_available()}")
+
 # Define the image_models dictionary using build functions
 image_models.update({
     "vit_h": build_sam_vit_h,
@@ -47,13 +49,9 @@ def init_training(cfg, rank):
         torch.manual_seed(cfg.seed)
         random.seed(cfg.seed)
 
-    # Get training device
-    #device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu"
-    
-    if torch.cuda.is_available():
-        device = torch.device("cuda:" + str(rank))
-    else:
-        device = "cpu"
+    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu" 
+    print("Using:", device)
 
     # Load train dataset
     train_dataset = SatelliteTileDataset(data_dir='./tests/tiles/rank_'+str(rank), tile_list_file='train_tile_list.pkl')
@@ -131,10 +129,9 @@ def configure_optimizers(model, cfg):
     return optimizer, aux_optimizer
 
 
-def dataloader_manager(device, model, transform, satellite_tile_hw_batch, bbox_batch, ground_truth_tile_batch):
+def dataloader_manager(device, model, transform, satellite_tile_hw_batch, ground_truth_tile_batch):
     for j in range(len(satellite_tile_hw_batch)):
         satellite_tile_hw = satellite_tile_hw_batch[j].numpy()
-        bbox = bbox_batch[j]
         ground_truth_tile = ground_truth_tile_batch[j].numpy()
 
         input_image = transform.apply_image(satellite_tile_hw)            
@@ -143,27 +140,21 @@ def dataloader_manager(device, model, transform, satellite_tile_hw_batch, bbox_b
         original_image_size = satellite_tile_hw.shape[:2]
         input_size = tuple(input_image_torch.shape[2:4])
 
-        bbox_np = np.array(bbox)
-        if bbox_np.size == 4:
-            bbox_np = bbox_np.reshape(1, 4)
-
-        box = transform.apply_boxes(bbox_np, original_image_size)
-        box_torch = torch.tensor(box, dtype=torch.float, device=device).unsqueeze(0)
-
         with torch.no_grad():
             image_embedding = model.image_encoder(input_image)
             sparse_embeddings, dense_embeddings = model.prompt_encoder(
                 points=None,
-                boxes=box_torch,
+                boxes=None,
                 masks=None,
             )
+            torch.cuda.empty_cache()
 
         low_res_masks, _ = model.mask_decoder(
             image_embeddings=image_embedding,
             image_pe=model.prompt_encoder.get_dense_pe(),
             sparse_prompt_embeddings=sparse_embeddings,
             dense_prompt_embeddings=dense_embeddings,
-            multimask_output=True,
+            multimask_output=False,
         )
 
         upscaled_masks = model.postprocess_masks(low_res_masks, input_size, original_image_size).to(device)
@@ -221,7 +212,7 @@ def train_one_batch(
         satellite_tile_hw_batch, bbox_batch, ground_truth_tile_batch = next(train_dataloader_iter)
 
     # Get model prediction and ground truth
-    binary_mask, gt_binary_mask = dataloader_manager(device, model, transform, satellite_tile_hw_batch, bbox_batch, ground_truth_tile_batch)
+    binary_mask, gt_binary_mask = dataloader_manager(device, model, transform, satellite_tile_hw_batch, ground_truth_tile_batch)
     binary_mask = binary_mask.to(device)
     gt_binary_mask = gt_binary_mask.to(device)
 
@@ -233,6 +224,8 @@ def train_one_batch(
 
     if batch_idx % 100 == 0:
         print(f"Rank {rank} - Training batch {batch_idx}: Loss: {loss.item():.3f}")
+
+    torch.cuda.empty_cache()
 
     return train_dataloader_iter, loss.item()
 
@@ -304,7 +297,7 @@ def test_epoch(rank, epoch, test_dataloader, model, criterion, transform):
 
         # Get model prediction and ground truth
         satellite_tile_hw_batch, bbox_batch, ground_truth_tile_batch = next(iter(test_dataloader))
-        binary_mask, gt_binary_mask = dataloader_manager(device, model, transform, satellite_tile_hw_batch, bbox_batch, ground_truth_tile_batch)
+        binary_mask, gt_binary_mask = dataloader_manager(device, model, transform, satellite_tile_hw_batch, ground_truth_tile_batch)
         binary_mask = binary_mask.to(device)
         gt_binary_mask = gt_binary_mask.to(device)
 
@@ -365,4 +358,5 @@ def eval_test_set(
 
     is_best = loss < best_loss
     best_loss = min(loss, best_loss)
+    torch.cuda.empty_cache()
     return loss, is_best, best_loss
