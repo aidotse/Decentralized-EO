@@ -46,22 +46,27 @@ from federation_utils import update_central_model
 
 import paseos
 
+torch.cuda.empty_cache()
+
 # Argument parser setup
 parser = argparse.ArgumentParser(description='Train MobileSAM model with custom settings.')
-parser.add_argument('--device', type=str, default='cpu', choices=['cuda', 'cpu'], help='Device to use for training (default: cuda)')
+parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'cpu'], help='Device to use for training (default: cuda)')
 parser.add_argument('--batch_size', type=int, default=16, help='Batch size for training (default: 16)')
-parser.add_argument('--selected_bands', type=str, default='RGB', help='RGB or NDWI (RG + NDWI)')
+parser.add_argument('--selected_bands', type=str, default='NDWI', help='RGB or NDWI (RG + NDWI)')
 parser.add_argument('--visualise', action='store_true', help='Visualise the tiles and bounding box')
 args = parser.parse_args()
 
 # Set device
 #device = args.device if torch.cuda.is_available() or args.device == 'cpu' else 'cpu'
 
+print(f"CUDA available: {torch.cuda.is_available()}")
+
+
 # Parse selected bands
 if args.selected_bands == 'RGB':
     selected_bands = [1, 2, 3]
 elif args.selected_bands == 'NDWI': # R, G, NDWI
-    selected_bands = [2, 3, 15]
+    selected_bands = [2, 3, 13]
 
 class SatelliteTileDataset(Dataset):
     def __init__(self, data_dir, tile_list_file, transform=None):
@@ -118,24 +123,23 @@ def main(cfg):
     time_since_last_update = 0
     total_simulation_time = 0
     standby_period = 900  # how long to standby if necessary
+    #MPI_sync_period = 10
     MPI_sync_period = 600  # After how many seconds we wait synchronize instance clocks
     cfg.save_path = get_savepath_str(cfg)
 
-    plot = True
+    plot = False
     test_losses = []
     train_losses = []
     local_time_at_test = []
+    time_at_train = []
 
     def constraint_function():
         return constraint_func(paseos_instance, groundstations)
 
     paseos.set_log_level("INFO")
-    #device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu"
-
-    if torch.cuda.is_available():
-        device = torch.device("cuda:" + str(rank))
-    else:
-        device = "cpu"
+    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu" 
+    print("Using:", device)
 
     # Init MPIr
     comm = MPI.COMM_WORLD
@@ -229,9 +233,6 @@ def main(cfg):
         # B) Traing model on a batch
         # C) Standby to cool down / recharge
 
-        if total_simulation_time == 19:
-            activity = "Model_update"
-
         if activity == "Model_update":
             #print(
             #    f"Rank {rank} will update with GS "
@@ -296,7 +297,7 @@ def main(cfg):
             )
 
             # Push the time of last step slightly beyond to be distinguishable in plots
-            local_time_at_test[-1] += 10
+            #local_time_at_test[-1] += 10
 
         elif activity == "Training":
             # 1) Model training cost in PASEOS
@@ -325,6 +326,7 @@ def main(cfg):
             end = time.time()
             time_per_batch_list.append(end - start)
             train_losses.append(train_loss)
+            time_at_train.append(paseos_instance._state.time)
             batch_idx += 1            
 
         else:
@@ -375,6 +377,11 @@ def main(cfg):
         np.array(time_per_batch_list),
         delimiter=",",
     )
+    np.savetxt(
+        cfg.save_path + "/time_at_train_rank" + str(rank) + ".csv",
+        np.array(time_at_train),
+        delimiter=",",
+    )
     
     toml.dump(cfg, open(cfg.save_path + "/cfg.toml", "w"))
 
@@ -387,9 +394,12 @@ def main(cfg):
 
     print(f"Rank {rank} finished.")  
 
+        #total_simulation_time += cfg.time_per_batch
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         warnings.warn("Please pass the path to a cfg file. Using default cfg")
+        #path = "../cfg/simulation_without_training_cfg.toml"
         path = "../cfg/mobile_sam_sim_gpu.toml"
     else:
         path = sys.argv[1]
