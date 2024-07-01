@@ -42,6 +42,15 @@ image_models.update({
     "vit_t": build_sam_vit_t,
 })
 
+# Function to calculate IoU
+def calculate_iou(pred, target):
+    pred = (pred > 0.5).float()
+    target = (target > 0.5).float()
+    intersection = (pred * target).sum((1, 2, 3))
+    union = (pred + target - pred * target).sum((1, 2, 3))
+    iou = intersection / union
+    return iou.mean().item()
+
 def init_training(cfg, rank):
     from test_main import SatelliteTileDataset, custom_collate_fn
 
