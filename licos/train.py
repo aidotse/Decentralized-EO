@@ -154,22 +154,27 @@ def configure_optimizers(model, cfg):
     return optimizer, aux_optimizer
 
 
-def dataloader_manager(device, model, transform, satellite_tile_hw_batch, ground_truth_tile_batch):
-    for j in range(len(satellite_tile_hw_batch)):
-        satellite_tile_hw = satellite_tile_hw_batch[j].numpy()
+def dataloader_manager(device, model, transform, satellite_tile_batch, bbox_batch, ground_truth_tile_batch, original_image_size_batch):
+    for j in range(len(satellite_tile_batch)):
+        satellite_tile_hw = satellite_tile_batch[j].numpy()
+        bbox = bbox_batch[j]
         ground_truth_tile = ground_truth_tile_batch[j].numpy()
+        original_image_size = original_image_size_batch[j]
 
-        input_image = transform.apply_image(satellite_tile_hw)            
-        input_image_torch = torch.as_tensor(input_image, device=device).permute(2, 0, 1).contiguous().unsqueeze(0)
+        input_image_torch = torch.as_tensor(satellite_tile_hw, device=device).permute(2, 0, 1).contiguous().unsqueeze(0)        
         input_image = model.preprocess(input_image_torch)
-        original_image_size = satellite_tile_hw.shape[:2]
         input_size = tuple(input_image_torch.shape[2:4])
 
         with torch.no_grad():
             image_embedding = model.image_encoder(input_image)
+
+            bbox_np = np.array(bbox).reshape(1, 4)
+            box = transform.apply_boxes(bbox_np, original_image_size)
+            box_torch = torch.tensor(box, dtype=torch.float, device=device).unsqueeze(0)
+
             sparse_embeddings, dense_embeddings = model.prompt_encoder(
                 points=None,
-                boxes=None,
+                boxes=box_torch,
                 masks=None,
             )
             torch.cuda.empty_cache()
@@ -228,16 +233,16 @@ def train_one_batch(
     device = next(model.parameters()).device
 
     try:
-        satellite_tile_hw_batch, bbox_batch, ground_truth_tile_batch = next(train_dataloader_iter)
+        satellite_tile_batch, bbox_batch, ground_truth_tile_batch, original_image_size_batch = next(train_dataloader_iter)
 
     except StopIteration:
         # StopIteration is thrown if dataset ends
         # reinitialize data loader
         train_dataloader_iter = iter(train_dataloader)
-        satellite_tile_hw_batch, bbox_batch, ground_truth_tile_batch = next(train_dataloader_iter)
+        satellite_tile_batch, bbox_batch, ground_truth_tile_batch, original_image_size_batch = next(train_dataloader_iter)
 
     # Get model prediction and ground truth
-    binary_mask, gt_binary_mask = dataloader_manager(device, model, transform, satellite_tile_hw_batch, ground_truth_tile_batch)
+    binary_mask, gt_binary_mask = dataloader_manager(device, model, transform, satellite_tile_batch, bbox_batch, ground_truth_tile_batch, original_image_size_batch)
     binary_mask = binary_mask.to(device)
     gt_binary_mask = gt_binary_mask.to(device)
 
@@ -321,8 +326,8 @@ def test_epoch(rank, epoch, test_dataloader, model, criterion, transform):
     with torch.no_grad():
 
         # Get model prediction and ground truth
-        satellite_tile_hw_batch, bbox_batch, ground_truth_tile_batch = next(iter(test_dataloader))
-        binary_mask, gt_binary_mask = dataloader_manager(device, model, transform, satellite_tile_hw_batch, ground_truth_tile_batch)
+        satellite_tile_batch, bbox_batch, ground_truth_tile_batch, original_image_size_batch = next(iter(test_dataloader))
+        binary_mask, gt_binary_mask = dataloader_manager(device, model, transform, satellite_tile_batch, ground_truth_tile_batch)
         binary_mask = binary_mask.to(device)
         gt_binary_mask = gt_binary_mask.to(device)
 
