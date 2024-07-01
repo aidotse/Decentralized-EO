@@ -68,30 +68,21 @@ class SatelliteTileDataset(Dataset):
     def __getitem__(self, idx):
         entry = self.tile_list[idx]
         satellite_tile = entry["satellite_tile"]
-        selected_bands_data = satellite_tile[selected_bands, :, :]
-        satellite_tile_hw = np.transpose(selected_bands_data, (1, 2, 0)).astype(np.uint8)
-
-        if self.transform:
-            satellite_tile_hw = self.transform.apply_image(satellite_tile_hw)
-
         bounding_box = entry["bounding_box"]
         ground_truth_tile = entry["ground_truth_tile"]
+        
+        original_image_size = satellite_tile.shape[:2]
+        
+        if self.transform:
+            satellite_tile = self.transform.apply_image(satellite_tile)
 
-        return satellite_tile_hw, bounding_box, ground_truth_tile
+        return satellite_tile, bounding_box, ground_truth_tile, original_image_size
 
 def custom_collate_fn(batch):
-    satellite_tiles, bboxes, ground_truth_tiles = zip(*batch)
+    satellite_tiles, bboxes, ground_truth_tiles, original_image_sizes = zip(*batch)
     satellite_tiles = torch.stack([torch.from_numpy(tile) for tile in satellite_tiles])
     ground_truth_tiles = torch.stack([torch.from_numpy(tile) for tile in ground_truth_tiles])
-    return satellite_tiles, list(bboxes), ground_truth_tiles
-
-#def initialize_model(device):
-#    model_type = "vit_t"
-#    sam_checkpoint = "../weights/mobile_sam.pt"
-#    mobile_sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
-#    mobile_sam.to(device=device)
-#    mobile_sam.train()
-#    return mobile_sam
+    return satellite_tiles, list(bboxes), ground_truth_tiles, original_image_sizes
 
 def main(cfg):
     # Init
