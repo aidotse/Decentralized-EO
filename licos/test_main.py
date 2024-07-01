@@ -37,7 +37,6 @@ from segment_anything.utils.transforms import ResizeLongestSide
 import sys
 sys.path.append(os.path.expanduser('~/Decentralized-EO'))
 from mobile_sam import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
-import argparse
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
@@ -48,25 +47,7 @@ import paseos
 
 torch.cuda.empty_cache()
 
-# Argument parser setup
-parser = argparse.ArgumentParser(description='Train MobileSAM model with custom settings.')
-parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'cpu'], help='Device to use for training (default: cuda)')
-parser.add_argument('--batch_size', type=int, default=16, help='Batch size for training (default: 16)')
-parser.add_argument('--selected_bands', type=str, default='NDWI', help='RGB or NDWI (RG + NDWI)')
-parser.add_argument('--visualise', action='store_true', help='Visualise the tiles and bounding box')
-args = parser.parse_args()
-
-# Set device
-#device = args.device if torch.cuda.is_available() or args.device == 'cpu' else 'cpu'
-
 print(f"CUDA available: {torch.cuda.is_available()}")
-
-
-# Parse selected bands
-if args.selected_bands == 'RGB':
-    selected_bands = [1, 2, 3]
-elif args.selected_bands == 'NDWI': # R, G, NDWI
-    selected_bands = [2, 3, 13]
 
 class SatelliteTileDataset(Dataset):
     def __init__(self, data_dir, tile_list_file, transform=None):
