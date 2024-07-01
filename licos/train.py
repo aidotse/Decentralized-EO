@@ -57,6 +57,10 @@ def init_training(cfg, rank):
     if cfg.seed is not None:
         torch.manual_seed(cfg.seed)
         random.seed(cfg.seed)
+        np.random.seed(cfg.seed)  
+        torch.cuda.manual_seed(cfg.seed)  
+        torch.backends.cudnn.deterministic = True 
+        torch.backends.cudnn.benchmark = False
 
     #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu" 
