@@ -32,6 +32,9 @@ from mobile_sam import (
     SamPredictor
 )
 
+import toml
+from glob import glob
+
 print(f"CUDA available: {torch.cuda.is_available()}")
 
 # Define the image_models dictionary using build functions
@@ -66,8 +69,22 @@ def init_training(cfg, rank):
     device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu" 
     print("Using:", device)
 
+    # Initialize model
+    model_type = cfg.model  # Use model type from configuration
+    sam_checkpoint = "../weights/mobile_sam.pt"
+    mobile_sam = image_models[model_type](checkpoint=sam_checkpoint)
+    mobile_sam.to(device=device)
+
+    # Prep data for ingestion by model encoder
+    transform = ResizeLongestSide(mobile_sam.image_encoder.img_size)
+
+    # Load *.pkl files for training from specific rank directory
+    train_data_dir = os.path.join(cfg.dataset, 'new_rank_' + str(rank))
+    train_pkl_files = glob(os.path.join(train_data_dir, '*.pkl'))
+    train_tile_list_file = os.path.basename(train_pkl_files[0])
+
     # Load train dataset
-    train_dataset = SatelliteTileDataset(data_dir='./tests/tiles/rank_'+str(rank), tile_list_file='train_tile_list.pkl')
+    train_dataset = SatelliteTileDataset(data_dir=train_data_dir, tile_list_file=train_tile_list_file, transform=transform)
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=cfg.batch_size,
@@ -79,8 +96,12 @@ def init_training(cfg, rank):
     )
     train_dataloader_iter = iter(train_dataloader)
 
-    # Load test dataset
-    test_dataset = SatelliteTileDataset(data_dir='./tests/tiles/test', tile_list_file='test_tile_list.pkl')
+   # Load validation/test .pkl file
+    test_data_dir = os.path.join(cfg.dataset, 'new_test')
+    test_pkl_files = glob(os.path.join(test_data_dir, '*.pkl'))
+    test_tile_list_file = os.path.basename(test_pkl_files[0])
+
+    test_dataset = SatelliteTileDataset(data_dir=test_data_dir, tile_list_file=test_tile_list_file, transform=transform)
     test_dataloader = DataLoader(
         test_dataset,
         batch_size=cfg.batch_size,
@@ -90,15 +111,6 @@ def init_training(cfg, rank):
         pin_memory_device=device,
         collate_fn=custom_collate_fn
     )
-
-    # Initialize model
-    model_type = cfg.model  # Use model type from configuration
-    sam_checkpoint = "../weights/mobile_sam.pt"
-    mobile_sam = image_models[model_type](checkpoint=sam_checkpoint)
-
-    # Assign model to device (either GPU device if cuda is available, or CPU thread).
-    mobile_sam.to(device=device)
-    #mobile_sam.train()
 
     optimizer, aux_optimizer = configure_optimizers(mobile_sam, cfg)
     lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min")
