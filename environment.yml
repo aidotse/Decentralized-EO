@@ -1,10 +1,10 @@
-name: licos
+name: decentralizedEO
 channels:
   - conda-forge
   - pytorch
 dependencies:
   - paseos
-  #- cudatoolkit   # Not available for ARM based cpu architecture.
+  - cudatoolkit   # Not available for ARM based cpu architecture.
   - dotmap
   - ipykernel
   - ipywidgets
@@ -24,6 +24,3 @@ dependencies:
   - torchvision
   - toml
   - tqdm
-  - pip
-  - pip:
-    - compressai

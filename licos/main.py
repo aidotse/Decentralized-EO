@@ -6,7 +6,7 @@ from pathlib import Path
 import toml
 from dotmap import DotMap
 import torch
-import numpy as np
+#import numpy as np 
 import pykep as pk
 
 sys.path.append("../")  # needed until paseos is properly installed
@@ -16,8 +16,8 @@ from mpi4py import MPI
 from create_plots import create_plots
 from init_paseos import init_paseos
 from actor_logic import constraint_func, decide_on_activity, perform_activity
-from federation_utils import update_central_model
-from train import train_one_batch, init_training, eval_test_set
+#from federation_utils import update_central_model
+#from train import train_one_batch, init_training, eval_test_set
 from utils import get_savepath_str
 
 
@@ -31,12 +31,12 @@ def main(cfg):
     time_in_standby = 0
     time_since_last_update = 0
     total_simulation_time = 0
-    standby_period = 0 #900  # how long to standby if necessary
-    MPI_sync_period = 0 #600  # After how many seconds we wait synchronize instance clocks
+    standby_period = 900  # how long to standby if necessary
+    MPI_sync_period = 600  # After how many seconds we wait synchronize instance clocks
     cfg.save_path = get_savepath_str(cfg)
 
     plot = False
-    test_losses = []
+    #test_losses = []
     local_time_at_test = []
 
     def constraint_function():
@@ -63,17 +63,17 @@ def main(cfg):
 
     print("Loading dataset...", flush=True)
     # Init training
-    (
-        net,
-        optimizer,
-        aux_optimizer,
-        criterion,
-        train_dataloader,
-        test_dataloader,
-        lr_scheduler,
-        last_epoch,
-        train_dataloader_iter,
-    ) = init_training(cfg, rank)
+    #(
+    #    net,
+    #    optimizer,
+    #    aux_optimizer,
+    #    criterion,
+    #    train_dataloader,
+    #    test_dataloader,
+    #    lr_scheduler,
+    #    last_epoch,
+    #    train_dataloader_iter,
+    #) = init_training(cfg, rank)
 
     print(f"Rank {rank} - Init training", flush=True)
     sys.stdout.flush()
@@ -88,9 +88,11 @@ def main(cfg):
 
     ################################################################################
     # Main Training loop
-    best_loss = float("inf")
+    #best_loss = float("inf")
     batch_idx = 0
     while total_simulation_time < cfg.simulation_time:
+
+        print(f"Total Simulation Time: {total_simulation_time}", flush = True)
         ################################################################################
         # Sync time between ranks to minimize divergence
         if (
@@ -148,48 +150,48 @@ def main(cfg):
             )
             # 2) Evaluate test set before exchanging models
             print(f"Rank {rank} - Pre-aggregation test.")
-            loss, is_best, best_loss = eval_test_set(
-                rank,
-                optimizer,
-                batch_idx,
-                net,
-                criterion,
-                test_losses,
-                test_dataloader,
-                local_time_at_test,
-                paseos_instance,
-                lr_scheduler,
-                best_loss,
-            )
+            #loss, is_best, best_loss = eval_test_set(
+            #    rank,
+            #    optimizer,
+            #    batch_idx,
+            #    net,
+            #    criterion,
+            #    test_losses,
+            #    test_dataloader,
+            #    local_time_at_test,
+            #    paseos_instance,
+            #    lr_scheduler,
+            #    best_loss,
+            #)
 
             # 3) Exchange models with the ground stations
-            update_central_model(
-                rank,
-                device,
-                batch_idx,
-                net,
-                loss,
-                best_loss,
-                paseos_instance._state.time,
-                cfg,
-            )
+            #update_central_model(
+            #    rank,
+            #    device,
+            #    batch_idx,
+            #    net,
+            #    loss,
+            #    best_loss,
+            #    paseos_instance._state.time,
+            #    cfg,
+            #)
             time_since_last_update = 0
 
             # 4) Evaluate test set after exchanging models
             print(f"Rank {rank} - Post-aggregation test.")
-            loss, is_best, best_loss = eval_test_set(
-                rank,
-                optimizer,
-                batch_idx,
-                net,
-                criterion,
-                test_losses,
-                test_dataloader,
-                local_time_at_test,
-                paseos_instance,
-                lr_scheduler,
-                best_loss,
-            )
+            #loss, is_best, best_loss = eval_test_set(
+            #    rank,
+            #    optimizer,
+            #    batch_idx,
+            #    net,
+            #    criterion,
+            #    test_losses,
+            #    test_dataloader,
+            #    local_time_at_test,
+            #    paseos_instance,
+            #    lr_scheduler,
+            #    best_loss,
+            #)
             # Push the time of last step slightly beyond to be distinguishable in plots
             local_time_at_test[-1] += 10
         elif activity == "Training":
@@ -214,7 +216,6 @@ def main(cfg):
             #    batch_idx,
             #    cfg.clip_max_norm,
             #)
-            print("Simulating training one batch")
             batch_idx += 1
         else:
             # 1) Model standby in PASEOS and do nothing :)
@@ -242,16 +243,16 @@ def main(cfg):
     Path(cfg.save_path + "/").mkdir(parents=True, exist_ok=True)
     paseos_instance.save_status_log_csv(cfg.save_path + "/" + str(rank) + ".csv")
     create_plots(paseos_instances=[paseos_instance], cfg=cfg, rank=rank)
-    np.savetxt(
-        cfg.save_path + "/loss_rank" + str(rank) + ".csv",
-        np.array(test_losses),
-        delimiter=",",
-    )
-    np.savetxt(
-        cfg.save_path + "/time_at_loss_rank" + str(rank) + ".csv",
-        np.array(local_time_at_test),
-        delimiter=",",
-    )
+    #np.savetxt(
+    #    cfg.save_path + "/loss_rank" + str(rank) + ".csv",
+    #    np.array(test_losses),
+    #    delimiter=",",
+    #)
+    #np.savetxt(
+    #    cfg.save_path + "/time_at_loss_rank" + str(rank) + ".csv",
+    #    np.array(local_time_at_test),
+    #    delimiter=",",
+    #)
     toml.dump(cfg, open(cfg.save_path + "/cfg.toml", "w"))
 
     print(f"Rank {rank} waiting to finish.")
@@ -268,7 +269,7 @@ def main(cfg):
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         warnings.warn("Please pass the path to a cfg file. Using default cfg")
-        path = "../cfg/default_cfg.toml"
+        path = "../cfg/simulation_without_training_cfg.toml"
     else:
         path = sys.argv[1]
     if not os.path.exists(path):
