@@ -201,7 +201,7 @@ def train_one_batch(
     model,
     criterion,
     train_dataloader,
-    train_dataloader_iter: DataLoader,
+    train_dataloader_iter,
     optimizer,
     aux_optimizer,
     batch_idx,
