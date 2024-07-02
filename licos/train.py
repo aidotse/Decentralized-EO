@@ -66,7 +66,12 @@ def init_training(cfg, rank):
         torch.backends.cudnn.benchmark = False
 
     #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu" 
+    #device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu" 
+    device = (
+    "cuda:{}".format(rank % torch.cuda.device_count())
+    if cfg.cuda and torch.cuda.is_available()
+    else "cpu"
+    )    
     print("Using:", device)
 
     # Initialize model
@@ -327,7 +332,7 @@ def test_epoch(rank, epoch, test_dataloader, model, criterion, transform):
 
         # Get model prediction and ground truth
         satellite_tile_batch, bbox_batch, ground_truth_tile_batch, original_image_size_batch = next(iter(test_dataloader))
-        binary_mask, gt_binary_mask = dataloader_manager(device, model, transform, satellite_tile_batch, ground_truth_tile_batch)
+        binary_mask, gt_binary_mask = binary_mask, gt_binary_mask = dataloader_manager(device, model, transform, satellite_tile_batch, bbox_batch, ground_truth_tile_batch, original_image_size_batch)
         binary_mask = binary_mask.to(device)
         gt_binary_mask = gt_binary_mask.to(device)
 

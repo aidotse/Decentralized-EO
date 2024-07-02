@@ -110,7 +110,12 @@ def main(cfg):
 
     paseos.set_log_level("INFO")
     #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu" 
+    #device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu" 
+    device = (
+    "cuda:{}".format(rank % torch.cuda.device_count())
+    if cfg.cuda and torch.cuda.is_available()
+    else "cpu"
+    )  
     print("Using:", device)
 
     # Init MPIr
