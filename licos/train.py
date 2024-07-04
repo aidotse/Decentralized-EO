@@ -6,10 +6,6 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from compressai.zoo import image_models
-#from compressai.datasets import ImageFolder
-#from compressai.losses import RateDistortionLoss
-
 from utils import AverageMeter, configure_optimizers
 from raw_image_folder import RawImageFolder
 from model_utils import get_model
@@ -38,6 +34,7 @@ from glob import glob
 print(f"CUDA available: {torch.cuda.is_available()}")
 
 # Define the image_models dictionary using build functions
+image_models = {}
 image_models.update({
     "vit_h": build_sam_vit_h,
     "vit_l": build_sam_vit_l,
