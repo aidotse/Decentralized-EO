@@ -7,7 +7,7 @@ from dotmap import DotMap
 import torch
 import torch.nn as nn
 
-from compressai.optimizers import net_aux_optimizer
+#from compressai.optimizers import net_aux_optimizer
 #from compressai.zoo import image_models
 
 from datetime import datetime
