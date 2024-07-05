@@ -5,7 +5,8 @@ model = "vit_t"
 dataset = "tests/tiles"
 
 # Simulation runtime in seconds
-simulation_time = 604800
+#simulation_time = 604800
+simulation_time = 1000
 
 # Learning rate
 #learning_rate = 1e-4
