@@ -1,5 +1,5 @@
 # Scenario 2: Low-altitude FL with relay 
-# In this scenario we evaluate the latency when considering a system of 8 satellites in low-altitude sentinel-2 orbit, 
+# In this scenario we evaluate the latency when considering a system of 8 satellites in low-altitude sentinel-2-like orbit, 
 #  capturing data and training onboard, with 3 ground stations federating the model and 1 comm-satellite managing ISL to 
 #  exchange data between satellites.
 
@@ -37,10 +37,10 @@ seed = 42
 checkpoint = ""
 
 # Time needed for communications in seconds
-time_for_comms = 3.88    # Computed based on model size and downlink speed (10 Mbit/sec). 
+time_for_comms = 7.76    # Computed based on model size and downlink speed (10 Mbit/sec) * 2 
 
 # estimated time per batch in seconds
-time_per_batch = 8.532207639593826    # Benchmark performance using the CPU on the Unibap IX10-100 device profiling the function train_one_batch. (To be updated with GPU performance)
+time_per_batch = 2.014170143339369    # Benchmark performance using the GPU on the Unibap IX10-100 device profiling the function train_one_batch.
 
 # Save all the models over time
 save_checkpoints_over_time = true
