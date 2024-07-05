@@ -158,7 +158,7 @@ class MLP(nn.Module):
         hidden_dim: int,
         output_dim: int,
         num_layers: int,
-        sigmoid_output: bool = False,
+        sigmoid_output: bool = True,
     ) -> None:
         super().__init__()
         self.num_layers = num_layers

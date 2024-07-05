@@ -7,7 +7,7 @@ from dotmap import DotMap
 import torch
 import torch.nn as nn
 
-from compressai.optimizers import net_aux_optimizer
+#from compressai.optimizers import net_aux_optimizer
 #from compressai.zoo import image_models
 
 from datetime import datetime
@@ -28,7 +28,7 @@ def get_savepath_str(cfg: DotMap) -> str:
         + "_seed="
         + str(cfg.seed)
         + "_t="
-        + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        + datetime.now().strftime("%Y_%m_%d_%H")
     )
 
 

@@ -28,6 +28,5 @@ dependencies:
   - tqdm
   - pip  # Include pip to handle pip installations for modules that are not available with conda.
   - pip:
-      - compressai
       - segment_anything
       - timm
