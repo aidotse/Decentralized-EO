@@ -377,7 +377,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         warnings.warn("Please pass the path to a cfg file. Using default cfg")
         #path = "../cfg/simulation_without_training_cfg.toml"
-        path = "../cfg/mobile_sam_sim_gpu.toml"
+        path = "../cfg/default_cfg.toml"
     else:
         path = sys.argv[1]
     if not os.path.exists(path):
