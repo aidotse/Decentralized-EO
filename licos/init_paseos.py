@@ -124,17 +124,29 @@ def init_paseos_scenario_0(rank, N_ranks):
     # Starting date of our simulation
     t0 = pk.epoch_from_string("2018-May-18 03:21:00")  
 
-    # Create the local actor, name will be the rank
+    # Define TLE for our spacecraft.
+    if rank == 0:
+        # First spacecraft is assumed to be Sentinel-2A:
+        sat_name = "Sentinel-2A"
+        # Sentinel-2A Orbit: (accessed 2024-07-05 14:35:10 CET at https://www.n2yo.com/satellite/?s=40697)
+        #   (Period: 98.6 [min], Inclination: 98.6 [deg], Apogee: 797.0 [km], Perigee: 795.2 [km])
+        line1 = "1 40697U 15028A   24187.21454778  .00000211  00000-0  96982-4 0  9994"
+        line2 = "2 40697  98.5684 261.2278 0001234  95.4779 264.6545 14.30817758471926"
+
+    else:
+        # Second spacecraft is assumed to be Sentinel-2B:
+        sat_name = "Sentinel-2B"
+        # Sentinel-2A Orbit: (accessed 2024-07-05 14:36:20 CET at https://www.n2yo.com/satellite/?s=42063#results)
+        #   (Period: 98.6 [min], Inclination: 98.6 [deg], Apogee: 797.0 [km], Perigee: 795.2 [km])
+        line1 = "1 42063U 17013A   24187.17957938  .00000220  00000-0  10062-3 0  9994"
+        line2 = "2 42063  98.5690 261.1892 0001177  94.9260 265.2057 14.30820356382832"
+
+    # Create the local actor
     local_actor = ActorBuilder.get_actor_scaffold(
-        name="Sat_" + str(rank), 
+        name=sat_name, 
         actor_type=SpacecraftActor, 
         epoch=t0
     )
-
-    # Sentinel-2A Orbit: (accessed 2024-06-27 17:51:01 CET at https://www.n2yo.com/satellite/?s=40697)
-    #   (Period: 98.6 [min], Inclination: 98.6 [deg], Apogee: 797.0 [km], Perigee: 795.2 [km])
-    line1 = "1 40697U 15028A   24179.52222975  .00000251  00000-0  11231-3 0  9998"
-    line2 = "2 40697  98.5685 253.6451 0001251  98.5004 261.6321 14.30825486470823"
 
     # Set the orbit of the actor
     ActorBuilder.set_TLE(local_actor, line1, line2)
@@ -186,9 +198,9 @@ def init_paseos_scenario_0(rank, N_ranks):
     groundstation_actors = []
     for station in stations:
         if station[0]=="Disaster Site": 
-            minimum_altitude_angle=78.08 
+            altitude_angle=78.08 
         else: 
-            minimum_altitude_angle=5
+            altitude_angle=5
             
         gs_actor = ActorBuilder.get_actor_scaffold(
             name=station[0], actor_type=GroundstationActor, epoch=t0
@@ -198,7 +210,7 @@ def init_paseos_scenario_0(rank, N_ranks):
             latitude=station[1],
             longitude=station[2],
             elevation=station[3],
-            minimum_altitude_angle=78.08,
+            minimum_altitude_angle=altitude_angle,
         )
         # paseos_instance.add_known_actor(gs_actor)
         groundstation_actors.append(gs_actor)
@@ -300,9 +312,9 @@ def init_paseos_scenario_1(rank, N_ranks):
     groundstation_actors = []
     for station in stations:
         if station[0]=="Disaster Site": 
-            minimum_altitude_angle=78.08 
+            altitude_angle=78.08 
         else: 
-            minimum_altitude_angle=5
+            altitude_angle=5
             
         gs_actor = ActorBuilder.get_actor_scaffold(
             name=station[0], actor_type=GroundstationActor, epoch=t0
@@ -312,7 +324,7 @@ def init_paseos_scenario_1(rank, N_ranks):
             latitude=station[1],
             longitude=station[2],
             elevation=station[3],
-            minimum_altitude_angle=78.08,
+            minimum_altitude_angle=altitude_angle,
         )
         # paseos_instance.add_known_actor(gs_actor)
         groundstation_actors.append(gs_actor)
@@ -419,9 +431,9 @@ def init_paseos_scenario_2(rank, N_ranks):
     groundstation_actors = []
     for station in stations:
         if station[0]=="Disaster Site": 
-            minimum_altitude_angle=78.08 
+            altitude_angle=78.08 
         else: 
-            minimum_altitude_angle=5
+            altitude_angle=5
 
         gs_actor = ActorBuilder.get_actor_scaffold(
             name=station[0], actor_type=GroundstationActor, epoch=t0
@@ -431,7 +443,7 @@ def init_paseos_scenario_2(rank, N_ranks):
             latitude=station[1],
             longitude=station[2],
             elevation=station[3],
-            minimum_altitude_angle=78.08,
+            minimum_altitude_angle=altitude_angle,
         )
         # paseos_instance.add_known_actor(gs_actor)
         groundstation_actors.append(gs_actor)
