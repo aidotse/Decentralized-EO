@@ -127,16 +127,12 @@ def init_paseos_scenario_0(rank, N_ranks):
 
     # Define TLE for our spacecraft.
     if rank == 0:
-        # First spacecraft is assumed to be Sentinel-2A:
-        sat_name = "Sentinel-2A"
         # Sentinel-2A Orbit: (accessed 2024-07-05 14:35:10 CET at https://www.n2yo.com/satellite/?s=40697)
         #   (Period: 98.6 [min], Inclination: 98.6 [deg], Apogee: 797.0 [km], Perigee: 795.2 [km])
         line1 = "1 40697U 15028A   24187.21454778  .00000211  00000-0  96982-4 0  9994"
         line2 = "2 40697  98.5684 261.2278 0001234  95.4779 264.6545 14.30817758471926"
 
     else:
-        # Second spacecraft is assumed to be Sentinel-2B:
-        sat_name = "Sentinel-2B"
         # Sentinel-2A Orbit: (accessed 2024-07-05 14:36:20 CET at https://www.n2yo.com/satellite/?s=42063#results)
         #   (Period: 98.6 [min], Inclination: 98.6 [deg], Apogee: 797.0 [km], Perigee: 795.2 [km])
         line1 = "1 42063U 17013A   24187.17957938  .00000220  00000-0  10062-3 0  9994"
@@ -144,7 +140,7 @@ def init_paseos_scenario_0(rank, N_ranks):
 
     # Create the local actor
     local_actor = ActorBuilder.get_actor_scaffold(
-        name=sat_name, 
+        name="Sat_" + str(rank), 
         actor_type=SpacecraftActor, 
         epoch=t0
     )
