@@ -110,8 +110,9 @@ def init_paseos(rank, N_ranks):
 
 def init_paseos_scenario_0(rank, N_ranks):
     """
-    This scenario considers a single satellite in Sentinel-2A orbit.
-    We assign the orbit using the TLE of Sentinel-2A.
+    This scenario considers two satellite in Sentinel orbit.
+    We assign the orbit using the TLE of both Sentinel-2A and
+    Sentinel-2B.
 
     Args:
         rank (int): Index of this compute rank.
@@ -196,8 +197,8 @@ def init_paseos_scenario_0(rank, N_ranks):
         ["Disaster Site", 66.30893, 23.67734, 127]
     ]
     groundstation_actors = []
-    for station in stations:
-        if station[0]=="Disaster Site": 
+    for i, station in enumerate(stations):
+        if i == 3: 
             altitude_angle=78.08 
         else: 
             altitude_angle=5
@@ -310,8 +311,8 @@ def init_paseos_scenario_1(rank, N_ranks):
         ["Disaster Site", 66.30893, 23.67734, 127]
     ]
     groundstation_actors = []
-    for station in stations:
-        if station[0]=="Disaster Site": 
+    for i, station in enumerate(stations):
+        if i == 3: 
             altitude_angle=78.08 
         else: 
             altitude_angle=5
@@ -429,8 +430,8 @@ def init_paseos_scenario_2(rank, N_ranks):
         ["Disaster Site", 66.30893, 23.67734, 127]
     ]
     groundstation_actors = []
-    for station in stations:
-        if station[0]=="Disaster Site": 
+    for i, station in enumerate(stations):
+        if i == 3:  
             altitude_angle=78.08 
         else: 
             altitude_angle=5
