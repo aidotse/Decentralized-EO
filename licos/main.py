@@ -86,6 +86,10 @@ def main(cfg):
     if plot and rank == 0:
         plotter = paseos.plot(paseos_instance, paseos.PlotType.SpacePlot)
 
+    # Retrieve Disaster site from paseos initialization
+    disaster_site = groundstations[-1]
+    groundstations = groundstations[:-1]
+
     ################################################################################
     # Main Training loop
     #best_loss = float("inf")
@@ -194,6 +198,22 @@ def main(cfg):
             #)
             # Push the time of last step slightly beyond to be distinguishable in plots
             local_time_at_test[-1] += 10
+            
+            # Store checkpoint for later analysis if in line of sight with disaster site
+            if paseos_instance.local_actor.is_in_line_of_sight(disaster_site, paseos_instance.local_time):
+                print(f"Rank {rank} - In line of sight with the Disaster site")
+                from utils import save_checkpoint
+                # Get local model state dict
+                local_sd = net.state_dict()
+                save_checkpoint({
+                        "batch_idx": batch_idx,
+                        "state_dict": local_sd,
+                        "loss": best_loss,
+                        "local_time": paseos_instance._state.time},
+                    False,
+                    filename=cfg.save_path + f"/Disaster_checkpoints/Disaster_visit_{paseos_instance._state.time}.pth.tar",
+                )
+
         elif activity == "Training":
             # 1) Model training cost in PASEOS
             perform_activity(
