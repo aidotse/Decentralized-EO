@@ -52,7 +52,7 @@ def calculate_iou(pred, target):
     return iou.mean().item()
 
 def init_training(cfg, rank):
-    from test_main import SatelliteTileDataset, custom_collate_fn
+    from main import SatelliteTileDataset, custom_collate_fn
 
     if cfg.seed is not None:
         torch.manual_seed(cfg.seed)

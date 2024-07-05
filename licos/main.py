@@ -211,12 +211,12 @@ def main(cfg):
         # C) Standby to cool down / recharge
 
         if activity == "Model_update":
-            #print(
-            #    f"Rank {rank} will update with GS "
-            #    + str(list(paseos_instance.known_actors.items())[0][0])
-            #    + " at "
-            #    + str(paseos_instance.local_actor.local_time)
-            #)
+            print(
+                f"Rank {rank} will update with GS "
+                + str(list(paseos_instance.known_actors.items())[0][0])
+                + " at "
+                + str(paseos_instance.local_actor.local_time)
+            )
             # 1) Model comms in PASEOS (already know there is a window from decide on activity)
             perform_activity(
                 activity,
