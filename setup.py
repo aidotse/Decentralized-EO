@@ -45,16 +45,34 @@ def update_conda_environment(env_name, environment_file):
 
 
 if __name__ == "__main__":
-
     # Create directory for external libraries
     if not os.path.exists('modules'):
+        print("Creating 'modules' directory")
         os.makedirs('modules')
+    else:
+        print("'modules' directory already exists")
 
-    # Clone Paseos:
-    url = 'https://github.com/aidotse/PASEOS.git'
-    path = 'modules/PASEOS'
-    branch = 'student'
-    clone_repository(url, path, branch)
+    # Clone PASEOS repository
+    paseos_path = 'modules/PASEOS'
+    if not os.path.exists(paseos_path):
+        print(f"Creating '{paseos_path}' directory")
+        os.makedirs(paseos_path)
+        url = 'https://github.com/aidotse/PASEOS.git'
+        branch = 'student'
+        clone_repository(url, paseos_path, branch)
+    else:
+        print(f"'{paseos_path}' directory already exists")
+
+    # Clone mobile_sam repository
+    mobile_sam_path = 'modules/mobile_sam'
+    if not os.path.exists(mobile_sam_path):
+        print(f"Creating '{mobile_sam_path}' directory")
+        os.makedirs(mobile_sam_path)
+        url = 'https://github.com/ChaoningZhang/MobileSAM.git'
+        branch = 'master'
+        clone_repository(url, mobile_sam_path, branch)
+    else:
+        print(f"'{mobile_sam_path}' directory already exists")
 
     # Update current conda environment with dependencies required by Paseos
     #env_name = 'eo'

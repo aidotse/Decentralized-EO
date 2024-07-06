@@ -13,17 +13,18 @@ from model_utils import get_model
 import os
 from segment_anything.utils.transforms import ResizeLongestSide
 import sys
-sys.path.append(os.path.expanduser('~/Decentralized-EO'))
-from mobile_sam import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
+
 import torch.nn as nn
 import numpy as np
+
+# Add the path of the cloned mobile_sam repository to the Python path
+sys.path.append(os.path.expanduser('../modules/mobile_sam'))
 
 from mobile_sam import (
     build_sam_vit_h,
     build_sam_vit_l,
     build_sam_vit_b,
     build_sam_vit_t,
-    sam_model_registry,
     SamAutomaticMaskGenerator,
     SamPredictor
 )

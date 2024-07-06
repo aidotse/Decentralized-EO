@@ -33,10 +33,7 @@ import torch
 from torch.optim import Adam
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
-from segment_anything.utils.transforms import ResizeLongestSide
 import sys
-sys.path.append(os.path.expanduser('~/Decentralized-EO'))
-from mobile_sam import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
