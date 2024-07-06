@@ -43,6 +43,27 @@ def update_conda_environment(env_name, environment_file):
     except subprocess.CalledProcessError as e:
         print(f"Error updating environment '{env_name}': {e}")
 
+def update_file(file_path):
+    try:
+        # Read the original content
+        with open(file_path, 'r') as file:
+            content = file.readlines()
+        
+        # Modify the specific line
+        new_content = []
+        for line in content:
+            if "sigmoid_output: bool = False" in line:
+                new_content.append(line.replace("sigmoid_output: bool = False", "sigmoid_output: bool = True"))
+            else:
+                new_content.append(line)
+        
+        # Write the modified content back to the file
+        with open(file_path, 'w') as file:
+            file.writelines(new_content)
+        
+        print(f"File '{file_path}' successfully updated.")
+    except Exception as e:
+        print(f"Error updating file '{file_path}': {e}")
 
 if __name__ == "__main__":
     # Create directory for external libraries
@@ -73,6 +94,10 @@ if __name__ == "__main__":
         clone_repository(url, mobile_sam_path, branch)
     else:
         print(f"'{mobile_sam_path}' directory already exists")
+
+    # Update mask_decoder.py in mobile_sam
+    mask_decoder = 'modules/mobile_sam/mobile_sam/modeling/mask_decoder.py'
+    update_file(mask_decoder)
 
     # Update current conda environment with dependencies required by Paseos
     #env_name = 'eo'
