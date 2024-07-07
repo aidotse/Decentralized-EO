@@ -56,8 +56,8 @@ def configure_optimizers(model, cfg):
     optimizer_params = [
         {"params": [p for p in model.parameters() if p.requires_grad]},
     ]
-    optimizer = torch.optim.Adam(optimizer_params, lr=cfg.lr)
-    aux_optimizer = torch.optim.Adam(optimizer_params, lr=cfg.aux_lr)
+    optimizer = torch.optim.Adam(optimizer_params, lr=cfg.learning_rate)
+    aux_optimizer = torch.optim.Adam(optimizer_params, lr=cfg.aux_learning_rate)
     return optimizer, aux_optimizer
 
 

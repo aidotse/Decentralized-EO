@@ -5,18 +5,13 @@ model = "vit_t"
 dataset = "tests/tiles"
 
 # Simulation runtime in seconds
-#simulation_time = 604800
 simulation_time = 1000
 
 # Learning rate
-#learning_rate = 1e-4
-lr = 1e-5
+learning_rate = 1e-5
 
 # Dataloaders threads
 num_workers = 1
-
-# Bit-rate distortion parameter
-lmbda = 1e-2
 
 # Batch size
 batch_size = 16
@@ -25,11 +20,7 @@ batch_size = 16
 test_batch_size = 64
 
 # Auxiliary loss learning rate
-#aux_learning_rate = 1e-3
-aux_lr = 1e-5
-
-# Size of the patches to be cropped
-patch_size = [256, 256]
+aux_learning_rate = 1e-3
 
 # Use cuda
 cuda = true
@@ -38,33 +29,16 @@ cuda = true
 save = true
 
 # Set random seed for reproducibility
-seed = 46
+seed = 42
 
 # Path to a checkpoint
 checkpoint = ""
 
 # Time needed for communications in seconds
-time_for_comms = 3.88
+time_for_comms = 7.76    # Computed based on model size and downlink speed (10 Mbit/sec) * 2 
 
 # estimated time per batch in seconds
-time_per_batch = 8.532207639593826
+time_per_batch = 2.014170143339369    # Benchmark performance using the GPU on the Unibap IX10-100 device profiling the function train_one_batch.
 
 # Save all the models over time
 save_checkpoints_over_time = true
-
-# Quality value for the model, 1 to 8
-model_quality = 1
-
-# Whether to use raw data
-use_raw_data = false
-
-# Gradient clipping max norm
-clip_max_norm = 1.0
-
-# Training data files
-train_data_files = ["split_1_train_data_RGB.pkl", "split_2_train_data_RGB.pkl", "split_3_train_data_RGB.pkl", "split_4_train_data_RGB.pkl", "split_5_train_data_RGB.pkl", "split_6_train_data_RGB.pkl", "split_7_train_data_RGB.pkl", "split_8_train_data_RGB.pkl"] 
-#train_data_files = ["split_1_train_data_NDWI.pkl", "split_2_train_data_NDWI.pkl", "split_3_train_data_NDWI.pkl", "split_4_train_data_NDWI.pkl", "split_5_train_data_NDWI.pkl", "split_6_train_data_NDWI.pkl", "split_7_train_data_NDWI.pkl", "split_8_train_data_NDWI.pkl"]
-
-# Evaluation data files
-test_data_files = ["val_data_RGB.pkl"]
-#test_data_files = ["val_data_NDWI.pkl"]
