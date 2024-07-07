@@ -30,17 +30,15 @@ import os
 import pickle
 import numpy as np
 import torch
-from torch.optim import Adam
-import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 import sys
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
+import paseos
 
+sys.path.append(os.path.expanduser('~/Decentralized-EO'))
+
+from mobile_sam import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
 from train import train_one_batch, init_training, eval_test_set
 from federation_utils import update_central_model
-
-import paseos
 
 torch.cuda.empty_cache()
 
