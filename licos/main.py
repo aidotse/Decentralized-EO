@@ -160,10 +160,6 @@ def main(cfg):
     disaster_site = groundstations[-1]
     groundstations = groundstations[:-1]
 
-    # Retrieve Disaster site from paseos initialization
-    disaster_site = groundstations[-1]
-    groundstations = groundstations[:-1]
-
     ################################################################################
     # Simulation loop
     best_loss = float("inf")
