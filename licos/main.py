@@ -35,7 +35,6 @@ import paseos
 
 sys.path.append(os.path.expanduser('~/Decentralized-EO'))
 
-from mobile_sam import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
 from train import train_one_batch, init_training, eval_test_set
 from federation_utils import update_central_model
 
@@ -308,7 +307,6 @@ def main(cfg):
                 optimizer,
                 aux_optimizer,
                 batch_idx,
-                cfg.clip_max_norm,
                 transform
             )
             end = time.time()
