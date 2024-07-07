@@ -5,14 +5,15 @@ model = "vit_t"
 dataset = "tests/tiles"
 
 # Simulation runtime in seconds
-simulation_time = 100.0
+#simulation_time = 604800
+simulation_time = 1000
 
 # Learning rate
 #learning_rate = 1e-4
-lr = 1e-4
+lr = 1e-5
 
 # Dataloaders threads
-num_workers = 0 #1
+num_workers = 1
 
 # Bit-rate distortion parameter
 lmbda = 1e-2
@@ -25,28 +26,31 @@ test_batch_size = 64
 
 # Auxiliary loss learning rate
 #aux_learning_rate = 1e-3
-aux_lr = 1e-3
+aux_lr = 1e-5
 
 # Size of the patches to be cropped
 patch_size = [256, 256]
 
 # Use cuda
-cuda = false
+cuda = true
 
 # Save model to disk
 save = true
 
 # Set random seed for reproducibility
-seed = 42
-
-# Gradient clipping max norm
-clip_max_norm = 1.0
+seed = 46
 
 # Path to a checkpoint
 checkpoint = ""
 
-# Whether to use a pretrained model
-pretrained = false
+# Time needed for communications in seconds
+time_for_comms = 3.88
+
+# estimated time per batch in seconds
+time_per_batch = 8.532207639593826
+
+# Save all the models over time
+save_checkpoints_over_time = true
 
 # Quality value for the model, 1 to 8
 model_quality = 1
@@ -54,28 +58,13 @@ model_quality = 1
 # Whether to use raw data
 use_raw_data = false
 
-# Time needed for communications in seconds
-time_for_comms = 60.0
+# Gradient clipping max norm
+clip_max_norm = 1.0
 
-# estimated time per batch in seconds
-time_per_batch = 1.0
+# Training data files
+train_data_files = ["split_1_train_data_RGB.pkl", "split_2_train_data_RGB.pkl", "split_3_train_data_RGB.pkl", "split_4_train_data_RGB.pkl", "split_5_train_data_RGB.pkl", "split_6_train_data_RGB.pkl", "split_7_train_data_RGB.pkl", "split_8_train_data_RGB.pkl"] 
+#train_data_files = ["split_1_train_data_NDWI.pkl", "split_2_train_data_NDWI.pkl", "split_3_train_data_NDWI.pkl", "split_4_train_data_NDWI.pkl", "split_5_train_data_NDWI.pkl", "split_6_train_data_NDWI.pkl", "split_7_train_data_NDWI.pkl", "split_8_train_data_NDWI.pkl"]
 
-# Raw data formatting
-# raw - as 13 individual bands
-# merged - 13 channel img
-raw_format = "split"
-
-# For raw data, image target resolution for merged mode.
-raw_target_resolution_merged_m = 20.0
-
-# Percentage of train partition over the whole dataset. Used only for raw data.
-raw_test_over_tot = 0.1
-
-# Percentage of eval partition over train. Used only for raw data.
-raw_validation_over_train = 0.11111111111111105
-
-# Tolerance (percentage) on test/ train geographical splitting. Used only for raw data.
-raw_train_test_tolerance= 0.01
-
-# Save all the models over time
-save_checkpoints_over_time = true
+# Evaluation data files
+test_data_files = ["val_data_RGB.pkl"]
+#test_data_files = ["val_data_NDWI.pkl"]
