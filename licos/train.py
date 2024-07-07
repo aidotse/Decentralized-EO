@@ -2,77 +2,87 @@ import torch
 import random
 
 import torch.optim as optim
-
 from torch.utils.data import DataLoader
-from torchvision import transforms
+from utils import configure_optimizers
 
-#from compressai.zoo import image_models
-#from compressai.datasets import ImageFolder
-#from compressai.losses import RateDistortionLoss
+import os
+from segment_anything.utils.transforms import ResizeLongestSide
+import sys
 
-from utils import AverageMeter, configure_optimizers
-from raw_image_folder import RawImageFolder
-from model_utils import get_model
+import torch.nn as nn
+import numpy as np
 
+# Add the path of the cloned mobile_sam repository to the Python path
+sys.path.append(os.path.expanduser('../mobile_sam'))
+
+from mobile_sam import (
+    build_sam_vit_h,
+    build_sam_vit_l,
+    build_sam_vit_b,
+    build_sam_vit_t,
+    SamAutomaticMaskGenerator,
+    SamPredictor
+)
+
+import toml
+from glob import glob
+
+print(f"CUDA available: {torch.cuda.is_available()}")
+
+# Define the image_models dictionary using build functions
+image_models = {}
+image_models.update({
+    "vit_h": build_sam_vit_h,
+    "vit_l": build_sam_vit_l,
+    "vit_b": build_sam_vit_b,
+    "vit_t": build_sam_vit_t,
+})
+
+# Function to calculate IoU
+def calculate_iou(pred, target):
+    pred = (pred > 0.5).float()
+    target = (target > 0.5).float()
+    intersection = (pred * target).sum((1, 2, 3))
+    union = (pred + target - pred * target).sum((1, 2, 3))
+    iou = intersection / union
+    return iou.mean().item()
 
 def init_training(cfg, rank):
-    """Initializes training
-
-    Args:
-        cfg (dict): Config of the run
-
-    Returns:
-        net,optimizer,aux_optimizer,criterion,train_dataloader,test_dataloader,lr_scheduler,last_epoch
-    """
+    from main import SatelliteTileDataset, custom_collate_fn
 
     if cfg.seed is not None:
         torch.manual_seed(cfg.seed)
         random.seed(cfg.seed)
+        np.random.seed(cfg.seed)  
+        torch.cuda.manual_seed(cfg.seed)  
+        torch.backends.cudnn.deterministic = True 
+        torch.backends.cudnn.benchmark = False
 
-    # Training Setup
-    train_transforms = transforms.Compose(
-        [transforms.RandomCrop(cfg.patch_size), transforms.ToTensor()]
-    )
+    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu" 
+    device = (
+    "cuda:{}".format(rank % torch.cuda.device_count())
+    if cfg.cuda and torch.cuda.is_available()
+    else "cpu"
+    )    
+    print("Using:", device)
 
-    validation_transforms = transforms.Compose(
-        [transforms.CenterCrop(cfg.patch_size), transforms.ToTensor()]
-    )
+    # Initialize model
+    model_type = cfg.model  # Use model type from configuration
+    sam_checkpoint = "../weights/mobile_sam.pt"
+    mobile_sam = image_models[model_type](checkpoint=sam_checkpoint)
+    mobile_sam.to(device=device)
 
-    if cfg.use_raw_data:
-        train_dataset = RawImageFolder(
-            root=cfg.dataset,
-            seed=cfg.seed,
-            test_over_total_percentage=cfg.raw_test_over_tot,
-            valid_over_train_percentage=cfg.raw_validation_over_train,
-            raw_format=cfg.raw_format,
-            target_resolution_merged_m=cfg.raw_target_resolution_merged_m,
-            preloaded=cfg.preloaded,
-            split="train",
-            transform=train_transforms,
-            geographical_split_tolerance=cfg.raw_train_test_tolerance,
-        )
-        validation_dataset = RawImageFolder(
-            root=cfg.dataset,
-            seed=cfg.seed,
-            test_over_total_percentage=cfg.raw_test_over_tot,
-            valid_over_train_percentage=cfg.raw_validation_over_train,
-            raw_format=cfg.raw_format,
-            target_resolution_merged_m=cfg.raw_target_resolution_merged_m,
-            preloaded=cfg.preloaded,
-            split="validation",
-            transform=validation_transforms,
-            geographical_split_tolerance=cfg.raw_train_test_tolerance,
-        )
-    #else:
-    #    train_dataset = ImageFolder(
-    #        cfg.dataset, split="train", transform=train_transforms
-    #    )
-    #    validation_dataset = ImageFolder(
-    #        cfg.dataset, split="test", transform=validation_transforms
-    #    )
+    # Prep data for ingestion by model encoder
+    transform = ResizeLongestSide(mobile_sam.image_encoder.img_size)
 
-    device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu"
+    # Load *.pkl files for training from specific rank directory
+    train_data_dir = os.path.join(cfg.dataset, 'new_rank_' + str(rank))
+    train_pkl_files = glob(os.path.join(train_data_dir, '*.pkl'))
+    train_tile_list_file = os.path.basename(train_pkl_files[0])
 
+    # Load train dataset
+    train_dataset = SatelliteTileDataset(data_dir=train_data_dir, tile_list_file=train_tile_list_file, transform=transform)
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=cfg.batch_size,
@@ -80,69 +90,96 @@ def init_training(cfg, rank):
         shuffle=True,
         pin_memory=(device == "cuda:" + str(rank)),
         pin_memory_device=device,
+        collate_fn=custom_collate_fn
     )
-
     train_dataloader_iter = iter(train_dataloader)
 
-    validation_dataloader = DataLoader(
-        validation_dataset,
-        batch_size=cfg.test_batch_size,
+   # Load validation/test .pkl file
+    test_data_dir = os.path.join(cfg.dataset, 'new_test')
+    test_pkl_files = glob(os.path.join(test_data_dir, '*.pkl'))
+    test_tile_list_file = os.path.basename(test_pkl_files[0])
+
+    test_dataset = SatelliteTileDataset(data_dir=test_data_dir, tile_list_file=test_tile_list_file, transform=transform)
+    test_dataloader = DataLoader(
+        test_dataset,
+        batch_size=cfg.batch_size,
         num_workers=cfg.num_workers,
         shuffle=False,
         pin_memory=(device == "cuda:" + str(rank)),
         pin_memory_device=device,
+        collate_fn=custom_collate_fn
     )
-    if cfg.use_raw_data:
-        if cfg.raw_format == "split":
-            net = get_model(
-                model=cfg.model,
-                pretrained=cfg.pretrained,
-                in_channels=1,
-                quality=cfg.model_quality,
-            )
-        else:
-            net = get_model(
-                model=cfg.model,
-                pretrained=cfg.pretrained,
-                in_channels=13,
-                quality=cfg.model_quality,
-            )
-    #else:
-    #    net = image_models[cfg.model](
-    #        quality=cfg.model_quality, pretrained=cfg.pretrained
-    #    )
 
-    net = net.to(device)
-
-    # if cfg.cuda and torch.cuda.device_count() > 1:
-    #     print("Using multiple device CustomDataParallel")
-    #     net = CustomDataParallel(net)
-
-    optimizer, aux_optimizer = configure_optimizers(net, cfg)
+    optimizer, aux_optimizer = configure_optimizers(mobile_sam, cfg)
     lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min")
-    #criterion = RateDistortionLoss(lmbda=cfg.lmbda)
+    criterion = nn.MSELoss()
 
     last_epoch = 0
     if cfg.checkpoint:  # load from previous checkpoint
         print("Loading", cfg.checkpoint)
         checkpoint = torch.load(cfg.checkpoint, map_location=device)
         last_epoch = checkpoint["epoch"] + 1
-        net.load_state_dict(checkpoint["state_dict"])
+        mobile_sam.load_state_dict(checkpoint["state_dict"])
         optimizer.load_state_dict(checkpoint["optimizer"])
         aux_optimizer.load_state_dict(checkpoint["aux_optimizer"])
         lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
 
+    transform = ResizeLongestSide(mobile_sam.image_encoder.img_size)
+
     return (
-        net,
+        mobile_sam,
         optimizer,
         aux_optimizer,
-        #criterion,
+        criterion,
         train_dataloader,
-        validation_dataloader,
+        test_dataloader, # placeholder for val_dataloader
         lr_scheduler,
         last_epoch,
         train_dataloader_iter,
+        transform
     )
+
+def dataloader_manager(device, model, transform, satellite_tile_batch, bbox_batch, ground_truth_tile_batch, original_image_size_batch):
+    for j in range(len(satellite_tile_batch)):
+        satellite_tile_hw = satellite_tile_batch[j].numpy()
+        bbox = bbox_batch[j]
+        ground_truth_tile = ground_truth_tile_batch[j].numpy()
+        original_image_size = original_image_size_batch[j]
+
+        input_image_torch = torch.as_tensor(satellite_tile_hw, device=device).permute(2, 0, 1).contiguous().unsqueeze(0)        
+        input_image = model.preprocess(input_image_torch)
+        input_size = tuple(input_image_torch.shape[2:4])
+
+        with torch.no_grad():
+            print("Before encoder....")
+            image_embedding = model.image_encoder(input_image)
+            print("After encoder....")
+            bbox_np = np.array(bbox).reshape(1, 4)
+            box = transform.apply_boxes(bbox_np, original_image_size)
+            box_torch = torch.tensor(box, dtype=torch.float, device=device).unsqueeze(0)
+
+            sparse_embeddings, dense_embeddings = model.prompt_encoder(
+                points=None,
+                boxes=box_torch,
+                masks=None,
+            )
+            torch.cuda.empty_cache()
+
+        low_res_masks, _ = model.mask_decoder(
+            image_embeddings=image_embedding,
+            image_pe=model.prompt_encoder.get_dense_pe(),
+            sparse_prompt_embeddings=sparse_embeddings,
+            dense_prompt_embeddings=dense_embeddings,
+            multimask_output=False,
+        )
+
+        upscaled_masks = model.postprocess_masks(low_res_masks, input_size, original_image_size).to(device)
+        binary_mask = torch.sigmoid(upscaled_masks)
+
+        gt_mask_resized = torch.from_numpy(np.resize(ground_truth_tile, (1, 1, ground_truth_tile.shape[0], ground_truth_tile.shape[1]))).to(device)
+        gt_binary_mask = torch.as_tensor(gt_mask_resized > 0, dtype=torch.float32, device=device)
+
+        return binary_mask, gt_binary_mask
 
 
 def train_one_batch(
@@ -150,66 +187,63 @@ def train_one_batch(
     model,
     criterion,
     train_dataloader,
-    train_dataloader_iter: DataLoader,
+    train_dataloader_iter,
     optimizer,
     aux_optimizer,
     batch_idx,
     clip_max_norm,
+    transform
 ):
     """Trains the model on one batch
 
     Args:
         rank (int): Rank index
         model (torch.model): model to train
-        criterion (): Loss criteration, see compressai docs
+        criterion (): Loss criterion, see compressai docs
         train_dataloader (torch.dataloader): loader for training data
         train_dataloader_iter (iterator): current iterator on the loader
         optimizer (torch.optimizer): optimizer for gradients
         aux_optimizer (torch.optimizer): auxiliary loss optimizer
         batch_idx (int): index of current batch
         clip_max_norm (): gradient clipping thingy
+        transform: Transformation function
+        device: Device to use for training
 
     Returns:
         iterator: the updated training data loader
     """
+    
+    print("Training one batch...")
+
     model.train()
     device = next(model.parameters()).device
 
     try:
-        d = next(train_dataloader_iter)
+        satellite_tile_batch, bbox_batch, ground_truth_tile_batch, original_image_size_batch = next(train_dataloader_iter)
+
     except StopIteration:
         # StopIteration is thrown if dataset ends
         # reinitialize data loader
         train_dataloader_iter = iter(train_dataloader)
-        d = next(train_dataloader_iter)
+        satellite_tile_batch, bbox_batch, ground_truth_tile_batch, original_image_size_batch = next(train_dataloader_iter)
 
-    d = d.to(device)
+    # Get model prediction and ground truth
+    binary_mask, gt_binary_mask = dataloader_manager(device, model, transform, satellite_tile_batch, bbox_batch, ground_truth_tile_batch, original_image_size_batch)
+    binary_mask = binary_mask.to(device)
+    gt_binary_mask = gt_binary_mask.to(device)
+
+    # Calculate loss and update model parmaters
+    loss = criterion(binary_mask, gt_binary_mask)
     optimizer.zero_grad()
-    aux_optimizer.zero_grad()
-    # print("Training data shape=", d.shape)
-    out_net = model(d)
-
-    out_criterion = criterion(out_net, d)
-    out_criterion["loss"].backward()
-    if clip_max_norm > 0:
-        torch.nn.utils.clip_grad_norm_(model.parameters(), clip_max_norm)
+    loss.backward()
     optimizer.step()
 
-    aux_loss = model.aux_loss()
-    aux_loss.backward()
-    aux_optimizer.step()
-
     if batch_idx % 100 == 0:
-        print(
-            f"Rank {rank} - "
-            f"Training batch {batch_idx}: ["
-            f'Loss: {out_criterion["loss"].item():.3f} |'
-            f'MSE loss: {out_criterion["mse_loss"].item():.3f} |'
-            f'Bpp loss: {out_criterion["bpp_loss"].item():.2f} |'
-            f"Aux loss: {aux_loss.item():.2f}"
-        )
+        print(f"Rank {rank} - Training batch {batch_idx}: Loss: {loss.item():.3f}")
 
-    return train_dataloader_iter
+    torch.cuda.empty_cache()
+
+    return train_dataloader_iter, loss.item()
 
 
 def train_one_epoch(
@@ -259,7 +293,7 @@ def train_one_epoch(
             )
 
 
-def test_epoch(rank, epoch, test_dataloader, model, criterion):
+def test_epoch(rank, epoch, test_dataloader, model, criterion, transform):
     """Test the model
 
     Args:
@@ -275,32 +309,24 @@ def test_epoch(rank, epoch, test_dataloader, model, criterion):
     model.eval()
     device = next(model.parameters()).device
 
-    loss = AverageMeter()
-    bpp_loss = AverageMeter()
-    mse_loss = AverageMeter()
-    aux_loss = AverageMeter()
-
     with torch.no_grad():
-        for d in test_dataloader:
-            d = d.to(device)
-            out_net = model(d)
-            out_criterion = criterion(out_net, d)
 
-            aux_loss.update(model.aux_loss())
-            bpp_loss.update(out_criterion["bpp_loss"])
-            loss.update(out_criterion["loss"])
-            mse_loss.update(out_criterion["mse_loss"])
+        # Get model prediction and ground truth
+        satellite_tile_batch, bbox_batch, ground_truth_tile_batch, original_image_size_batch = next(iter(test_dataloader))
+        binary_mask, gt_binary_mask = binary_mask, gt_binary_mask = dataloader_manager(device, model, transform, satellite_tile_batch, bbox_batch, ground_truth_tile_batch, original_image_size_batch)
+        binary_mask = binary_mask.to(device)
+        gt_binary_mask = gt_binary_mask.to(device)
+
+        # Calculate loss and update model parmaters
+        loss = criterion(binary_mask, gt_binary_mask)
 
     print(
         f"Rank {rank} - "
         f"Test epoch {epoch}: Average losses:"
-        f"\tLoss: {loss.avg:.3f} |"
-        f"\tMSE loss: {mse_loss.avg:.3f} |"
-        f"\tBpp loss: {bpp_loss.avg:.2f} |"
-        f"\tAux loss: {aux_loss.avg:.2f}\n"
+        f"\tLoss: {loss:.3f} |\n"
     )
 
-    return loss.avg
+    return loss
 
 
 def eval_test_set(
@@ -315,6 +341,7 @@ def eval_test_set(
     paseos_instance,
     lr_scheduler,
     best_loss,
+    transform
 ):
     """Evaluate the set
 
@@ -337,7 +364,7 @@ def eval_test_set(
     # print(f"Rank {rank} - Evaluating test set")
     # print(f"Rank {rank} - Previous learning rate: {optimizer.param_groups[0]['lr']}")
     # start = time.time()
-    loss = test_epoch(rank, batch_idx, test_dataloader, net, criterion)
+    loss = test_epoch(rank, batch_idx, test_dataloader, net, criterion, transform)
     test_losses.append(loss.item())
     local_time_at_test.append(paseos_instance._state.time)
     # print(f"Rank {rank} - Test evaluation took {time.time() - start}s")
@@ -347,4 +374,5 @@ def eval_test_set(
 
     is_best = loss < best_loss
     best_loss = min(loss, best_loss)
+    torch.cuda.empty_cache()
     return loss, is_best, best_loss
