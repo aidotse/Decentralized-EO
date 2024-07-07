@@ -4,6 +4,7 @@ In this project we explore decentralized learning for earth observation.
 The project is currently built with  
 - [Paseos](https://github.com/aidotse/PASEOS): A Python module that simulates the environment to operate multiple spacecraft.
 - [LICOS](https://github.com/gomezzz/LICOS): A Python module for Learning Image Compression On board a Satellite constellation.
+- [MobileSAM](https://github.com/ChaoningZhang/MobileSAM): A pre-trained segmentation model that can be run on mobile devices.
 
 <!-- GETTING STARTED -->
 
