@@ -18,8 +18,7 @@ import pykep as pk
 from create_plots import create_plots
 from init_paseos import init_paseos
 from actor_logic import constraint_func, decide_on_activity, perform_activity
-from utils import get_savepath_str
-
+from utils import get_savepath_str, save_checkpoint
 
 import time
 sys.path.append("..") # to get the root directory
@@ -281,7 +280,6 @@ def main(cfg):
             # Store checkpoint for later analysis if in line of sight with disaster site
             if paseos_instance.local_actor.is_in_line_of_sight(disaster_site, paseos_instance.local_time):
                 print(f"Rank {rank} - In line of sight with the Disaster site")
-                from utils import save_checkpoint
                 # Get local model state dict
                 local_sd = net.state_dict()
                 save_checkpoint({
