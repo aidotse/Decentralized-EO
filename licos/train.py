@@ -2,13 +2,8 @@ import torch
 import random
 
 import torch.optim as optim
-
 from torch.utils.data import DataLoader
-from torchvision import transforms
-
-from utils import AverageMeter, configure_optimizers
-from raw_image_folder import RawImageFolder
-from model_utils import get_model
+from utils import configure_optimizers
 
 import os
 from segment_anything.utils.transforms import ResizeLongestSide
@@ -18,7 +13,7 @@ import torch.nn as nn
 import numpy as np
 
 # Add the path of the cloned mobile_sam repository to the Python path
-sys.path.append(os.path.expanduser('../modules/mobile_sam'))
+sys.path.append(os.path.expanduser('../mobile_sam'))
 
 from mobile_sam import (
     build_sam_vit_h,
@@ -144,19 +139,6 @@ def init_training(cfg, rank):
         transform
     )
 
-def configure_optimizers(model, cfg):
-    optimizer_params = [
-        {"params": [p for p in model.parameters() if p.requires_grad]},
-    ]
-
-    ## Debugging statement to check optimizer parameters
-    #print(f"Optimizer parameters: {optimizer_params}")
-
-    optimizer = torch.optim.Adam(optimizer_params, lr=cfg.lr)
-    aux_optimizer = torch.optim.Adam(optimizer_params, lr=cfg.aux_lr)
-    return optimizer, aux_optimizer
-
-
 def dataloader_manager(device, model, transform, satellite_tile_batch, bbox_batch, ground_truth_tile_batch, original_image_size_batch):
     for j in range(len(satellite_tile_batch)):
         satellite_tile_hw = satellite_tile_batch[j].numpy()
@@ -169,8 +151,9 @@ def dataloader_manager(device, model, transform, satellite_tile_batch, bbox_batc
         input_size = tuple(input_image_torch.shape[2:4])
 
         with torch.no_grad():
+            print("Before encoder....")
             image_embedding = model.image_encoder(input_image)
-
+            print("After encoder....")
             bbox_np = np.array(bbox).reshape(1, 4)
             box = transform.apply_boxes(bbox_np, original_image_size)
             box_torch = torch.tensor(box, dtype=torch.float, device=device).unsqueeze(0)
