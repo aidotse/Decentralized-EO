@@ -3,7 +3,6 @@
 import numpy as np
 import pykep as pk
 
-
 def get_constellation(altitude, inclination, nSats, nPlanes, t0, verbose=True):
     """Creates a constellation with the passed parameters. More details can be found at
     https://github.com/esa/LADDS/blob/main/notebooks/ConstellationGeneration/ConstellationGeneration.ipynb

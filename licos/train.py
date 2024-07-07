@@ -191,7 +191,6 @@ def train_one_batch(
     optimizer,
     aux_optimizer,
     batch_idx,
-    clip_max_norm,
     transform
 ):
     """Trains the model on one batch
@@ -205,7 +204,6 @@ def train_one_batch(
         optimizer (torch.optimizer): optimizer for gradients
         aux_optimizer (torch.optimizer): auxiliary loss optimizer
         batch_idx (int): index of current batch
-        clip_max_norm (): gradient clipping thingy
         transform: Transformation function
         device: Device to use for training
 
