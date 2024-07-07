@@ -66,26 +66,9 @@ def update_file(file_path):
         print(f"Error updating file '{file_path}': {e}")
 
 if __name__ == "__main__":
-    # Create directory for external libraries
-    if not os.path.exists('modules'):
-        print("Creating 'modules' directory")
-        os.makedirs('modules')
-    else:
-        print("'modules' directory already exists")
-
-    # Clone PASEOS repository
-    paseos_path = 'modules/PASEOS'
-    if not os.path.exists(paseos_path):
-        print(f"Creating '{paseos_path}' directory")
-        os.makedirs(paseos_path)
-        url = 'https://github.com/aidotse/PASEOS.git'
-        branch = 'student'
-        clone_repository(url, paseos_path, branch)
-    else:
-        print(f"'{paseos_path}' directory already exists")
 
     # Clone mobile_sam repository
-    mobile_sam_path = 'modules/mobile_sam'
+    mobile_sam_path = 'mobile_sam'
     if not os.path.exists(mobile_sam_path):
         print(f"Creating '{mobile_sam_path}' directory")
         os.makedirs(mobile_sam_path)
@@ -96,10 +79,5 @@ if __name__ == "__main__":
         print(f"'{mobile_sam_path}' directory already exists")
 
     # Update mask_decoder.py in mobile_sam
-    mask_decoder = 'modules/mobile_sam/mobile_sam/modeling/mask_decoder.py'
+    mask_decoder = 'mobile_sam/mobile_sam/modeling/mask_decoder.py'
     update_file(mask_decoder)
-
-    # Update current conda environment with dependencies required by Paseos
-    #env_name = 'eo'
-    #environment_file = 'modules/paseos/environment.yml'
-    #update_conda_environment(env_name, environment_file)
