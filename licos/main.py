@@ -16,7 +16,7 @@ import pykep as pk
 
 # Import additional necessary modules
 from create_plots import create_plots
-from init_paseos import init_paseos
+from init_paseos import init_paseos, init_paseos_scenario_0, init_paseos_scenario_1, init_paseos_scenario_2
 from actor_logic import constraint_func, decide_on_activity, perform_activity
 from utils import get_savepath_str, save_checkpoint
 
@@ -146,7 +146,7 @@ def main(cfg):
     sys.stdout.flush()
 
     # Init paseos
-    paseos_instance, local_actor, groundstations = init_paseos(rank, comm.Get_size())
+    paseos_instance, local_actor, groundstations = init_paseos_scenario_1(rank, comm.Get_size())
     time_of_last_sync = local_actor.local_time.mjd2000 * pk.DAY2SEC
     
     print(f"Rank {rank} - Init PASEOS", flush=True)
