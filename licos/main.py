@@ -199,6 +199,19 @@ def main(cfg):
             time_since_last_update,
         )
 
+        # Store checkpoint for later analysis if in line of sight with disaster site
+        if paseos_instance.local_actor.is_in_line_of_sight(disaster_site, paseos_instance.local_time):
+            print(f"Rank {rank} - In line of sight with the Disaster site")
+            # Get local model state dict
+            local_sd = net.state_dict()
+            save_checkpoint({
+                    "batch_idx": batch_idx,
+                    "state_dict": local_sd,
+                    "loss": best_loss,
+                    "local_time": paseos_instance._state.time},
+                False,
+                filename=cfg.save_path + f"/Disaster_checkpoints/Disaster_visit_{paseos_instance._state.time}.pth.tar",
+            )
 
         ################################################################################
         # Perform  what was the decided on first in paseos and than on the rank, either
@@ -272,20 +285,6 @@ def main(cfg):
             # Push the time of last step slightly beyond to be distinguishable in plots
             local_time_at_test[-1] += 10
             
-            # Store checkpoint for later analysis if in line of sight with disaster site
-            if paseos_instance.local_actor.is_in_line_of_sight(disaster_site, paseos_instance.local_time):
-                print(f"Rank {rank} - In line of sight with the Disaster site")
-                # Get local model state dict
-                local_sd = net.state_dict()
-                save_checkpoint({
-                        "batch_idx": batch_idx,
-                        "state_dict": local_sd,
-                        "loss": best_loss,
-                        "local_time": paseos_instance._state.time},
-                    False,
-                    filename=cfg.save_path + f"/Disaster_checkpoints/Disaster_visit_{paseos_instance._state.time}.pth.tar",
-                )
-
         elif activity == "Training":
             # 1) Model training cost in PASEOS
             perform_activity(
@@ -330,7 +329,7 @@ def main(cfg):
                 + f"{local_actor.temperature_in_K - 273.15:.2f},"
                 + f"Battery SoC: {local_actor.state_of_charge:.2f}"
             )
-        
+
         if plot and batch_idx % 10 == 0 and rank == 0:
             plotter.update(paseos_instance)
 
