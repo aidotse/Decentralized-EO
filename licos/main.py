@@ -159,6 +159,7 @@ def main(cfg):
     disaster_site = groundstations[-1]
     groundstations = groundstations[:-1]
     Path(cfg.save_path + "/Disaster_checkpoints/").mkdir(parents=True, exist_ok=True)
+    checkpoint_times = []
     
     ################################################################################
     # Simulation loop
@@ -202,17 +203,20 @@ def main(cfg):
 
         # Store checkpoint for later analysis if in line of sight with disaster site
         if paseos_instance.local_actor.is_in_line_of_sight(disaster_site, paseos_instance.local_time):
-            print(f"Rank {rank} - In line of sight with the Disaster site")
-            # Get local model state dict
-            local_sd = net.state_dict()
-            save_checkpoint({
-                    "batch_idx": batch_idx,
-                    "state_dict": local_sd,
-                    "loss": best_loss,
-                    "local_time": paseos_instance._state.time},
-                False,
-                filename=cfg.save_path + f"/Disaster_checkpoints/Disaster_visit_{paseos_instance._state.time}.pth.tar",
-            )
+            if len(checkpoint_times) == 0 or (paseos_instance._state.time.mjd2000 * pk.DAY2SEC - checkpoint_times[-1] > 300):
+                print(f"Rank {rank} - In line of sight with the Disaster site")
+                local_time_in_sec = paseos_instance._state.time.mjd2000 * pk.DAY2SEC
+                # Get local model state dict
+                local_sd = net.state_dict()
+                save_checkpoint({
+                        "batch_idx": batch_idx,
+                        "state_dict": local_sd,
+                        "loss": best_loss,
+                        "local_time": paseos_instance._state.time},
+                    False,
+                    filename=cfg.save_path + f"/Disaster_checkpoints/Disaster_visit_{local_time_in_sec}.pth.tar",
+                )
+                checkpoint_times.append(local_time_in_sec)
 
         ################################################################################
         # Perform  what was the decided on first in paseos and than on the rank, either
