@@ -158,7 +158,8 @@ def main(cfg):
     # Retrieve Disaster site from paseos initialization
     disaster_site = groundstations[-1]
     groundstations = groundstations[:-1]
-
+    Path(cfg.save_path + "/Disaster_checkpoints/").mkdir(parents=True, exist_ok=True)
+    
     ################################################################################
     # Simulation loop
     best_loss = float("inf")
