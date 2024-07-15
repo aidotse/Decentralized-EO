@@ -96,18 +96,6 @@ def init_paseos(rank, N_ranks):
     return (paseos_instance, local_actor, groundstation_actors)
 
 
-
-################################################################
-#                                                              #
-#                                                              #
-#   Mission scenarios outlined in:                             #
-#   https://docs.google.com/document/d/15R1gMVpWTJv5cZnd5RPHl  #
-#   vqhWtSPUKm8dIxfOlrEBjM/edit#heading=h.79bmoqfn9fz2         #
-#                                                              #
-#                                                              #
-################################################################
-
-
 def init_paseos_scenario_0(rank, N_ranks):
     """
     This scenario considers two satellite in Sentinel orbit.
