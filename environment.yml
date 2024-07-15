@@ -18,7 +18,7 @@ dependencies:
   - pytorch
   - rasterio 
   - seaborn
-  - scipy
+  - scipy < 1.14.0
   - scikit-image
   - scikit-learn
   - scikit-spatial
@@ -26,8 +26,8 @@ dependencies:
   - torchvision
   - toml
   - tqdm
+  - gitpython
   - pip  # Include pip to handle pip installations for modules that are not available with conda.
   - pip:
-      - compressai
       - segment_anything
       - timm

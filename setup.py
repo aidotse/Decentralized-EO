@@ -43,20 +43,41 @@ def update_conda_environment(env_name, environment_file):
     except subprocess.CalledProcessError as e:
         print(f"Error updating environment '{env_name}': {e}")
 
+def update_file(file_path):
+    try:
+        # Read the original content
+        with open(file_path, 'r') as file:
+            content = file.readlines()
+        
+        # Modify the specific line
+        new_content = []
+        for line in content:
+            if "sigmoid_output: bool = False" in line:
+                new_content.append(line.replace("sigmoid_output: bool = False", "sigmoid_output: bool = True"))
+            else:
+                new_content.append(line)
+        
+        # Write the modified content back to the file
+        with open(file_path, 'w') as file:
+            file.writelines(new_content)
+        
+        print(f"File '{file_path}' successfully updated.")
+    except Exception as e:
+        print(f"Error updating file '{file_path}': {e}")
 
 if __name__ == "__main__":
 
-    # Create directory for external libraries
-    if not os.path.exists('modules'):
-        os.makedirs('modules')
+    # Clone mobile_sam repository
+    mobile_sam_path = 'mobile_sam'
+    if not os.path.exists(mobile_sam_path):
+        print(f"Creating '{mobile_sam_path}' directory")
+        os.makedirs(mobile_sam_path)
+        url = 'https://github.com/ChaoningZhang/MobileSAM.git'
+        branch = 'master'
+        clone_repository(url, mobile_sam_path, branch)
+    else:
+        print(f"'{mobile_sam_path}' directory already exists")
 
-    # Clone Paseos:
-    url = 'https://github.com/aidotse/PASEOS.git'
-    path = 'modules/PASEOS'
-    branch = 'student'
-    clone_repository(url, path, branch)
-
-    # Update current conda environment with dependencies required by Paseos
-    #env_name = 'eo'
-    #environment_file = 'modules/paseos/environment.yml'
-    #update_conda_environment(env_name, environment_file)
+    # Update mask_decoder.py in mobile_sam
+    mask_decoder = 'mobile_sam/mobile_sam/modeling/mask_decoder.py'
+    update_file(mask_decoder)

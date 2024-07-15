@@ -1,1 +1,0 @@
-Added folder for future scripts used to run example implementations of eo.
