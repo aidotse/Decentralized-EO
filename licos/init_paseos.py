@@ -96,7 +96,7 @@ def init_paseos(rank, N_ranks):
     return (paseos_instance, local_actor, groundstation_actors)
 
 
-def init_paseos_scenario_sentinel_with_fl(rank, N_ranks):
+def init_paseos_scenario_sentinel2_with_fl(rank, N_ranks):
     """
     This scenario considers two satellite in Sentinel orbit.
     We assign the orbit using the TLE of both Sentinel-2A and
