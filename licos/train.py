@@ -12,6 +12,21 @@ import sys
 import torch.nn as nn
 import numpy as np
 
+#os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+#garbage_collection_threshold:0.1
+#backend:native,
+#os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:32,roundup_power2_divisions:2,pooled_allocator:true,nmalloc:10"
+#os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:32,roundup_power2_divisions:2,pooled"
+
+#os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+#os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+#os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+#os.environ["CUDA_LAUNCH_BLOCKING_WAIT_FOR_SYNC"] = "1"
+#os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:21,roundup_power2_divisions:2,nmalloc:10"
+
+# Works but stops right after encoder instead.
+#os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:21,roundup_power2_divisions:2,pooled"
+
 # Add the path of the cloned mobile_sam repository to the Python path
 sys.path.append(os.path.expanduser('../mobile_sam'))
 
@@ -155,9 +170,11 @@ def dataloader_manager(device, model, transform, satellite_tile_batch, bbox_batc
             image_embedding = model.image_encoder(input_image)
             print("After encoder....")
             bbox_np = np.array(bbox).reshape(1, 4)
+            print("Before applying bboxes....")
             box = transform.apply_boxes(bbox_np, original_image_size)
+            print("Creating box tensor....")
             box_torch = torch.tensor(box, dtype=torch.float, device=device).unsqueeze(0)
-
+            print("Before prompt encoder....")
             sparse_embeddings, dense_embeddings = model.prompt_encoder(
                 points=None,
                 boxes=box_torch,
@@ -165,6 +182,8 @@ def dataloader_manager(device, model, transform, satellite_tile_batch, bbox_batc
             )
             torch.cuda.empty_cache()
 
+        print("Before decoder....")
+        torch.cuda.empty_cache()
         low_res_masks, _ = model.mask_decoder(
             image_embeddings=image_embedding,
             image_pe=model.prompt_encoder.get_dense_pe(),
@@ -173,12 +192,18 @@ def dataloader_manager(device, model, transform, satellite_tile_batch, bbox_batc
             multimask_output=False,
         )
 
+        print("Before postprocess....")
+        torch.cuda.empty_cache()
         upscaled_masks = model.postprocess_masks(low_res_masks, input_size, original_image_size).to(device)
+        torch.cuda.empty_cache()
         binary_mask = torch.sigmoid(upscaled_masks)
 
+        print("Resizing mask....")
+        torch.cuda.empty_cache()
         gt_mask_resized = torch.from_numpy(np.resize(ground_truth_tile, (1, 1, ground_truth_tile.shape[0], ground_truth_tile.shape[1]))).to(device)
+        torch.cuda.empty_cache()
         gt_binary_mask = torch.as_tensor(gt_mask_resized > 0, dtype=torch.float32, device=device)
-
+        print("Return of function....")
         return binary_mask, gt_binary_mask
 
 
