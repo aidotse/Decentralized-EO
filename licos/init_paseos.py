@@ -181,28 +181,25 @@ def init_paseos_scenario_low_altitude_constellation_with_fl_and_relay(rank, N_ra
     groundstation_actors = get_groundstations(t0)
     disaster_site_actors = get_disaster_site(t0)
     
-    
-    # Define a comm-sat as additional ground station actor
-    #   GEO communications satellite
-    #   Spacecraft: EDRS-A (https://connectivity.esa.int/european-data-relay-satellite-system-edrs-overview)
-    #   Altitude: 35786 km
-    #   Inclination: 0 degrees
-    #   Bandwith:
+    # Define a relay satellite with comm-device:
+    #   Spacecraft: Eutelsat 9B (https://connectivity.esa.int/european-data-relay-satellite-system-edrs-overview)
+    #   EDRS-A Payload including:
     #     - Optical inter-satellite link: 1,800,000 kbps (1.8 Gbit/s)
     #     - Ka-band inter-satellite link: 300,000 kbps (300 Mbit/s) ​​
-    altitude_geo = 35786*1000
-    inclination_geo = 0
-    n_Planes_geo = 1
-    nSats_geo = 1
-    comms_sat,comm_sat_pos_and_v,_ = get_constellation(altitude_geo,inclination_geo,n_Planes_geo,nSats_geo,t0)
-    pos,v = comm_sat_pos_and_v[0]
     sat_actor = ActorBuilder.get_actor_scaffold(name="comms_1",actor_type=SpacecraftActor, epoch=t0)
-    ActorBuilder.set_orbit(actor=sat_actor,position=pos,velocity=v,epoch=t0,central_body=earth)
     ActorBuilder.add_comm_device(actor=sat_actor,device_name="Link1",bandwidth_in_kbps=1800000)    
+
+    # Set orbit using TLE:
+    #   Eutelsat 9B TLE: (accessed 2024-07-15 20:44:21 CET at https://www.n2yo.com/satellite/?s=41310#results)
+    #   (Period: 1436.1 [min], Inclination: 0.0 [deg], Apogee: 35800.1 [km], Perigee: 35787.9 [km])
+    line1 = "1 41310U 16005A   24197.35141701  .00000079  00000-0  00000-0 0  9992"
+    line2 = "2 41310   0.0266  51.8679 0001451  82.6884 294.6196  1.00270924 31071"
+    ActorBuilder.set_TLE(sat_actor, line1, line2)
+
+    # Initialize sim and add to groundstation list
     instance = paseos.init_sim(local_actor=sat_actor)
     groundstation_actors.append(instance)
-
-    return (paseos_instance, local_actor, groundstation_actors)
+    return (paseos_instance, local_actor, groundstation_actors, disaster_site_actors)
 
 
 def get_S2_satellite_scaffold(local_actor):
