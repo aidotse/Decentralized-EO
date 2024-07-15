@@ -25,18 +25,29 @@ def decide_on_activity(
         tuple: activity name, power consumption, time spent in standby
     """
     has_comm_window = False
+    flood_is_observable = False
     window_end = pk.epoch(
         paseos_instance.local_actor.local_time.mjd2000 + timestep_for_comms * pk.SEC2DAY
     )
     for actors in paseos_instance.known_actors.items():
         if paseos_instance.local_actor.is_in_line_of_sight(
             actors[1], epoch=paseos_instance.local_actor.local_time
-        ) and paseos_instance.local_actor.is_in_line_of_sight(
-            actors[1], epoch=window_end
         ):
-            has_comm_window = True
-            break
+            if actors[1].name == "Flood":
+                flood_is_observable = True
+                break
+            elif paseos_instance.local_actor.is_in_line_of_sight(
+                actors[1], epoch=window_end
+                ):
+                has_comm_window = True
+                break
+
     if (
+        flood_is_observable
+        and len(paseos_instance.known_actors) > 0
+    ):
+        return "Inference", 10, 0
+    elif (
         has_comm_window
         and time_since_last_update > 900
         and len(paseos_instance.known_actors) > 0
