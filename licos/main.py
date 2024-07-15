@@ -146,6 +146,8 @@ def main(cfg):
     paseos_instance, local_actor, groundstations, disaster_sites = init_paseos_scenario_walker_constellation_with_fl(rank, comm.Get_size())
     actors_to_track = groundstations + disaster_sites
     time_of_last_sync = local_actor.local_time.mjd2000 * pk.DAY2SEC
+    Path(cfg.save_path + "/Disaster_checkpoints/").mkdir(parents=True, exist_ok=True)
+
     
     print(f"Rank {rank} - Init PASEOS", flush=True)
     sys.stdout.flush()
