@@ -96,7 +96,7 @@ def init_paseos(rank, N_ranks):
     return (paseos_instance, local_actor, groundstation_actors)
 
 
-def init_paseos_scenario_0(rank, N_ranks):
+def init_paseos_scenario_sentinel_with_fl(rank, N_ranks):
     """
     This scenario considers two satellite in Sentinel orbit.
     We assign the orbit using the TLE of both Sentinel-2A and
@@ -203,7 +203,7 @@ def init_paseos_scenario_0(rank, N_ranks):
     return (paseos_instance, local_actor, groundstation_actors)
 
 
-def init_paseos_scenario_1(rank, N_ranks):
+def init_paseos_scenario_constellation_with_fl(rank, N_ranks):
     """
     This scenario considers a number of satellites setup
     in a walker constellation with 1 orbital plane. The
@@ -318,7 +318,7 @@ def init_paseos_scenario_1(rank, N_ranks):
 
 
 
-def init_paseos_scenario_2(rank, N_ranks):
+def init_paseos_scenario_constellation_with_fl_and_relay(rank, N_ranks):
     """
     This scenario considers a number of satellites setup
     in a walker constellation with 1 orbital plane. The
