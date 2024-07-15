@@ -178,7 +178,7 @@ def init_paseos_scenario_0(rank, N_ranks):
         ["Maspalomas", 27.7629, -15.6338, 205.1],
         ["Matera", 40.6486, 16.7046, 536.9],
         ["Svalbard", 78.9067, 11.8883, 474.0],
-        ["Disaster Site", 66.30893, 23.67734, 127]
+        ["Disaster Site", 66.30893, 23.67734, 127.0]
     ]
     groundstation_actors = []
     for i, station in enumerate(stations):
@@ -292,7 +292,7 @@ def init_paseos_scenario_1(rank, N_ranks):
         ["Maspalomas", 27.7629, -15.6338, 205.1],
         ["Matera", 40.6486, 16.7046, 536.9],
         ["Svalbard", 78.9067, 11.8883, 474.0],
-        ["Disaster Site", 66.30893, 23.67734, 127]
+        ["Disaster Site", 66.30893, 23.67734, 127.0]
     ]
     groundstation_actors = []
     for i, station in enumerate(stations):
@@ -411,7 +411,7 @@ def init_paseos_scenario_2(rank, N_ranks):
         ["Maspalomas", 27.7629, -15.6338, 205.1],
         ["Matera", 40.6486, 16.7046, 536.9],
         ["Svalbard", 78.9067, 11.8883, 474.0],
-        ["Disaster Site", 66.30893, 23.67734, 127]
+        ["Disaster Site", 66.30893, 23.67734, 127.0]
     ]
     groundstation_actors = []
     for i, station in enumerate(stations):
