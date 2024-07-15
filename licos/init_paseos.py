@@ -87,7 +87,7 @@ def init_paseos(rank, N_ranks):
             latitude=station[1],
             longitude=station[2],
             elevation=station[3],
-            minimum_altitude_angle=5,
+            minimum_altitude_angle=5.0,
         )
         # paseos_instance.add_known_actor(gs_actor)
         groundstation_actors.append(gs_actor)
@@ -178,14 +178,14 @@ def init_paseos_scenario_0(rank, N_ranks):
         ["Maspalomas", 27.7629, -15.6338, 205.1],
         ["Matera", 40.6486, 16.7046, 536.9],
         ["Svalbard", 78.9067, 11.8883, 474.0],
-        ["Disaster Site", 66.30893, 23.67734, 127]
+        ["Disaster Site", 66.30893, 23.67734, 127.0]
     ]
     groundstation_actors = []
     for i, station in enumerate(stations):
         if i == 3: 
             altitude_angle=78.08 
         else: 
-            altitude_angle=5
+            altitude_angle=5.0
             
         gs_actor = ActorBuilder.get_actor_scaffold(
             name=station[0], actor_type=GroundstationActor, epoch=t0
@@ -292,14 +292,14 @@ def init_paseos_scenario_1(rank, N_ranks):
         ["Maspalomas", 27.7629, -15.6338, 205.1],
         ["Matera", 40.6486, 16.7046, 536.9],
         ["Svalbard", 78.9067, 11.8883, 474.0],
-        ["Disaster Site", 66.30893, 23.67734, 127]
+        ["Disaster Site", 66.30893, 23.67734, 127.0]
     ]
     groundstation_actors = []
     for i, station in enumerate(stations):
         if i == 3: 
             altitude_angle=78.08 
         else: 
-            altitude_angle=5
+            altitude_angle=5.0
             
         gs_actor = ActorBuilder.get_actor_scaffold(
             name=station[0], actor_type=GroundstationActor, epoch=t0
@@ -411,14 +411,14 @@ def init_paseos_scenario_2(rank, N_ranks):
         ["Maspalomas", 27.7629, -15.6338, 205.1],
         ["Matera", 40.6486, 16.7046, 536.9],
         ["Svalbard", 78.9067, 11.8883, 474.0],
-        ["Disaster Site", 66.30893, 23.67734, 127]
+        ["Disaster Site", 66.30893, 23.67734, 127.0]
     ]
     groundstation_actors = []
     for i, station in enumerate(stations):
         if i == 3:  
             altitude_angle=78.08 
         else: 
-            altitude_angle=5
+            altitude_angle=5.0
 
         gs_actor = ActorBuilder.get_actor_scaffold(
             name=station[0], actor_type=GroundstationActor, epoch=t0
