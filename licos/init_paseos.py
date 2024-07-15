@@ -5,56 +5,6 @@ from paseos import ActorBuilder, SpacecraftActor, GroundstationActor
 from get_constellation import get_constellation
 
 
-def init_paseos(rank, N_ranks):
-    """Initialize PASEOS simulation.
-
-    Args:
-        rank (int): Index of this compute rank.
-        N_ranks (int): Number of ranks.
-
-    Returns:
-        paseos_instance, local_actor, groundstation_actors
-    """
-    # PASEOS setup
-    altitude = 786 * 1000  # altitude above the Earth's ground [m]
-    inclination = 98.62  # inclination of the orbit
-
-    nPlanes = 1  # the number of orbital planes
-    nSats = N_ranks  # the number of satellites per orbital plane
-    t0 = pk.epoch_from_string("2023-Dec-17 14:42:42")  # starting date of our simulation
-
-    # Compute the orbit of each rank
-    planet_list, sats_pos_and_v, _ = get_constellation(
-        altitude, inclination, nSats, nPlanes, t0, verbose=False
-    )
-    print(
-        f"Rank {rank} set up its orbit with altitude={altitude}m and inclination={inclination}deg"
-    )
-
-    earth = pk.planet.jpl_lp("earth")  # define our central body
-    pos, v = sats_pos_and_v[rank]  # get our position and velocity
-
-    # Create the local actor, name will be the rank
-    local_actor = ActorBuilder.get_actor_scaffold(
-        name="Sat_" + str(rank), actor_type=SpacecraftActor, epoch=t0
-    )
-    ActorBuilder.set_orbit(
-        actor=local_actor, position=pos, velocity=v, epoch=t0, central_body=earth
-    )
-
-    # Add devices and parameters for physical simulation
-    get_S2_satellite_scaffold(local_actor)
-
-    # Initialize paseos instance
-    paseos_instance = initialize_paseos_instance(t0, local_actor)
-    print(f"Rank {rank} set up its PASEOS instance for its local actor {local_actor}")
-
-    # Define groundstations
-    groundstation_actors = get_groundstations(t0)
-
-    return (paseos_instance, local_actor, groundstation_actors)
-
-
 def init_paseos_scenario_sentinel2_with_fl(rank, N_ranks):
     """
     This scenario considers two satellite in Sentinel orbit.
@@ -240,12 +190,12 @@ def init_paseos_scenario_low_altitude_constellation_with_fl_and_relay(rank, N_ra
     #   EDRS-A Payload including:
     #     - Optical inter-satellite link: 1,800,000 kbps (1.8 Gbit/s)
     #     - Ka-band inter-satellite link: 300,000 kbps (300 Mbit/s) ​​
-    # Eutelsat 9B: (accessed 2024-07-15 20:44:21 CET at https://www.n2yo.com/satellite/?s=41310#results)
-    #   (Period: 1436.1 [min], Inclination: 0.0 [deg], Apogee: 35800.1 [km], Perigee: 35787.9 [km])
     sat_actor = ActorBuilder.get_actor_scaffold(name="comms_1",actor_type=SpacecraftActor, epoch=t0)
     ActorBuilder.add_comm_device(actor=sat_actor,device_name="Link1",bandwidth_in_kbps=1800000)    
 
     # Set orbit using TLE:
+    #   Eutelsat 9B TLE: (accessed 2024-07-15 20:44:21 CET at https://www.n2yo.com/satellite/?s=41310#results)
+    #   (Period: 1436.1 [min], Inclination: 0.0 [deg], Apogee: 35800.1 [km], Perigee: 35787.9 [km])
     line1 = "1 41310U 16005A   24197.35141701  .00000079  00000-0  00000-0 0  9992"
     line2 = "2 41310   0.0266  51.8679 0001451  82.6884 294.6196  1.00270924 31071"
     ActorBuilder.set_TLE(sat_actor, line1, line2)
