@@ -136,36 +136,8 @@ def init_paseos_scenario_sentinel2_with_fl(rank, N_ranks):
     # Set the orbit of the actor
     ActorBuilder.set_TLE(local_actor, line1, line2)
 
-    # Add a communication device to the actor
-    ActorBuilder.add_comm_device(
-        actor=local_actor, 
-        device_name="Link1", 
-        bandwidth_in_kbps=1000
-    )
-
-    # Set the power devices of the actor
-    # Battery from https://sentinels.copernicus.eu/documents/247904/349490/S2_SP-1322_2.pdf
-    # 87Ah * 28 Volt = 8.7696e9Ws
-    ActorBuilder.set_power_devices(
-        actor=local_actor,
-        battery_level_in_Ws=277200 * 0.5,
-        max_battery_level_in_Ws=277200,
-        charging_rate_in_W=20,
-    )
-
-    # Set the thermal model of the actor
-    # TODO update and sanity check
-    ActorBuilder.set_thermal_model(
-        actor=local_actor,
-        actor_mass=6.0,
-        actor_initial_temperature_in_K=283.15,
-        actor_sun_absorptance=0.9,
-        actor_infrared_absorptance=0.5,
-        actor_sun_facing_area=0.012,
-        actor_central_body_facing_area=0.01,
-        actor_emissive_area=0.1,
-        actor_thermal_capacity=6000,
-    )
+    # Add devices and parameters for physical simulation
+    get_S2_satellite_scaffold(local_actor)
 
     # Initialize paseos instance
     cfg = paseos.load_default_cfg()  # loading cfg to modify defaults
@@ -173,37 +145,14 @@ def init_paseos_scenario_sentinel2_with_fl(rank, N_ranks):
     paseos_instance = paseos.init_sim(local_actor=local_actor, cfg=cfg)
     print(f"Rank {rank} set up its PASEOS instance for its local actor {local_actor}")
 
-    # Define ground stations
-    stations = [
-        ["Maspalomas", 27.7629, -15.6338, 205.1],
-        ["Matera", 40.6486, 16.7046, 536.9],
-        ["Svalbard", 78.9067, 11.8883, 474.0],
-        ["Disaster Site", 66.30893, 23.67734, 127.0]
-    ]
-    groundstation_actors = []
-    for station in stations:
-        if station[0] == "Disaster Site": 
-            altitude_angle=78.08 
-        else: 
-            altitude_angle=5.0
-            
-        gs_actor = ActorBuilder.get_actor_scaffold(
-            name=station[0], actor_type=GroundstationActor, epoch=t0
-        )
-        ActorBuilder.set_ground_station_location(
-            gs_actor,
-            latitude=station[1],
-            longitude=station[2],
-            elevation=station[3],
-            minimum_altitude_angle=altitude_angle,
-        )
-        # paseos_instance.add_known_actor(gs_actor)
-        groundstation_actors.append(gs_actor)
-
+    # Define groundstations and disaster site
+    groundstation_actors = get_groundstations(t0)
+    disaster_site = get_disaster_site(t0)
+    groundstation_actors.append(disaster_site[0]) 
     return (paseos_instance, local_actor, groundstation_actors)
 
 
-def init_paseos_scenario_constellation_with_fl(rank, N_ranks):
+def init_paseos_scenario_walker_constellation_with_fl(rank, N_ranks):
     """
     This scenario considers a number of satellites setup
     in a walker constellation with 1 orbital plane. The
@@ -242,6 +191,7 @@ def init_paseos_scenario_constellation_with_fl(rank, N_ranks):
         actor_type=SpacecraftActor, 
         epoch=t0
     )
+
     ActorBuilder.set_orbit(
         actor=local_actor, 
         position=pos, 
@@ -250,36 +200,8 @@ def init_paseos_scenario_constellation_with_fl(rank, N_ranks):
         central_body=earth
     )
 
-    # Add a communication device to the actor
-    ActorBuilder.add_comm_device(
-        actor=local_actor, 
-        device_name="Link1", 
-        bandwidth_in_kbps=1000
-    )
-
-    # Set the power devices of the actor
-    # Battery from https://sentinels.copernicus.eu/documents/247904/349490/S2_SP-1322_2.pdf
-    # 87Ah * 28 Volt = 8.7696e9Ws
-    ActorBuilder.set_power_devices(
-        actor=local_actor,
-        battery_level_in_Ws=277200 * 0.5,
-        max_battery_level_in_Ws=277200,
-        charging_rate_in_W=20,
-    )
-
-    # Set the thermal model of the actor
-    # TODO update and sanity check
-    ActorBuilder.set_thermal_model(
-        actor=local_actor,
-        actor_mass=6.0,
-        actor_initial_temperature_in_K=283.15,
-        actor_sun_absorptance=0.9,
-        actor_infrared_absorptance=0.5,
-        actor_sun_facing_area=0.012,
-        actor_central_body_facing_area=0.01,
-        actor_emissive_area=0.1,
-        actor_thermal_capacity=6000,
-    )
+    # Add devices and parameters for physical simulation
+    get_S2_satellite_scaffold(local_actor)
 
     # Initialize paseos instance
     cfg = paseos.load_default_cfg()  # loading cfg to modify defaults
@@ -287,38 +209,16 @@ def init_paseos_scenario_constellation_with_fl(rank, N_ranks):
     paseos_instance = paseos.init_sim(local_actor=local_actor, cfg=cfg)
     print(f"Rank {rank} set up its PASEOS instance for its local actor {local_actor}")
 
-    # Define ground stations
-    stations = [
-        ["Maspalomas", 27.7629, -15.6338, 205.1],
-        ["Matera", 40.6486, 16.7046, 536.9],
-        ["Svalbard", 78.9067, 11.8883, 474.0],
-        ["Disaster Site", 66.30893, 23.67734, 127.0]
-    ]
-    groundstation_actors = []
-    for station in stations:
-        if station[0] == "Disaster Site": 
-            altitude_angle=78.08 
-        else: 
-            altitude_angle=5.0
-            
-        gs_actor = ActorBuilder.get_actor_scaffold(
-            name=station[0], actor_type=GroundstationActor, epoch=t0
-        )
-        ActorBuilder.set_ground_station_location(
-            gs_actor,
-            latitude=station[1],
-            longitude=station[2],
-            elevation=station[3],
-            minimum_altitude_angle=altitude_angle,
-        )
-        # paseos_instance.add_known_actor(gs_actor)
-        groundstation_actors.append(gs_actor)
+    # Define groundstations and disaster site
+    groundstation_actors = get_groundstations(t0)
+    disaster_site = get_disaster_site(t0)
+    groundstation_actors.append(disaster_site[0]) 
 
     return (paseos_instance, local_actor, groundstation_actors)
 
 
 
-def init_paseos_scenario_constellation_with_fl_and_relay(rank, N_ranks):
+def init_paseos_scenario_low_altitude_constellation_with_fl_and_relay(rank, N_ranks):
     """
     This scenario considers a number of satellites setup
     in a walker constellation with 1 orbital plane. The
@@ -369,6 +269,52 @@ def init_paseos_scenario_constellation_with_fl_and_relay(rank, N_ranks):
         central_body=earth
     )
 
+    # Add devices and parameters for physical simulation
+    get_S2_satellite_scaffold(local_actor)
+
+    # Initialize paseos instance
+    cfg = paseos.load_default_cfg()  # loading cfg to modify defaults
+    cfg.sim.start_time = t0.mjd2000 * pk.DAY2SEC  # convert epoch to seconds
+    paseos_instance = paseos.init_sim(local_actor=local_actor, cfg=cfg)
+    print(f"Rank {rank} set up its PASEOS instance for its local actor {local_actor}")
+
+    # Define ground stations and disaster site
+    groundstation_actors = get_groundstations(t0)
+    disaster_site = get_disaster_site(t0)
+    groundstation_actors.append(disaster_site[0]) 
+    
+    # Define a comm-sat as additional ground station actor
+    #   GEO communications satellite
+    #   Spacecraft: EDRS-A (https://connectivity.esa.int/european-data-relay-satellite-system-edrs-overview)
+    #   Altitude: 35786 km
+    #   Inclination: 0 degrees
+    #   Bandwith:
+    #     - Optical inter-satellite link: 1,800,000 kbps (1.8 Gbit/s)
+    #     - Ka-band inter-satellite link: 300,000 kbps (300 Mbit/s) ​​
+    altitude_geo = 35786*1000
+    inclination_geo = 0
+    n_Planes_geo = 1
+    nSats_geo = 1
+    comms_sat,comm_sat_pos_and_v,_ = get_constellation(altitude_geo,inclination_geo,n_Planes_geo,nSats_geo,t0)
+    pos,v = comm_sat_pos_and_v[0]
+    sat_actor = ActorBuilder.get_actor_scaffold(name="comms_1",actor_type=SpacecraftActor, epoch=t0)
+    ActorBuilder.set_orbit(actor=sat_actor,position=pos,velocity=v,epoch=t0,central_body=earth)
+    ActorBuilder.add_comm_device(actor=sat_actor,device_name="Link1",bandwidth_in_kbps=1800000)    
+    instance = paseos.init_sim(local_actor=sat_actor)
+    groundstation_actors.append(instance)
+
+    return (paseos_instance, local_actor, groundstation_actors)
+
+
+
+
+def get_S2_satellite_scaffold(local_actor):
+    """Adds the necessary devices and parameters to the
+    the provided actor according to Sentinel-2 specifications.
+
+    Args:
+        local_actor (SpacecraftActor): The actor to add to.
+    """
     # Add a communication device to the actor
     ActorBuilder.add_comm_device(
         actor=local_actor, 
@@ -400,26 +346,24 @@ def init_paseos_scenario_constellation_with_fl_and_relay(rank, N_ranks):
         actor_thermal_capacity=6000,
     )
 
-    # Initialize paseos instance
-    cfg = paseos.load_default_cfg()  # loading cfg to modify defaults
-    cfg.sim.start_time = t0.mjd2000 * pk.DAY2SEC  # convert epoch to seconds
-    paseos_instance = paseos.init_sim(local_actor=local_actor, cfg=cfg)
-    print(f"Rank {rank} set up its PASEOS instance for its local actor {local_actor}")
 
+def get_groundstations(t0):
+    """Creates a list of groundstations.
+
+    Args:
+        t0 (pk.epoch): Initial time.
+
+    Returns:
+        groundstation_actors (List of GroundstationActor): List of groundstations.
+    """
     # Define ground stations
     stations = [
         ["Maspalomas", 27.7629, -15.6338, 205.1],
         ["Matera", 40.6486, 16.7046, 536.9],
-        ["Svalbard", 78.9067, 11.8883, 474.0],
-        ["Disaster Site", 66.30893, 23.67734, 127.0]
+        ["Svalbard", 78.9067, 11.8883, 474.0]
     ]
     groundstation_actors = []
     for station in stations:
-        if station[0] == "Disaster Site": 
-            altitude_angle=78.08 
-        else: 
-            altitude_angle=5.0
-
         gs_actor = ActorBuilder.get_actor_scaffold(
             name=station[0], actor_type=GroundstationActor, epoch=t0
         )
@@ -428,30 +372,40 @@ def init_paseos_scenario_constellation_with_fl_and_relay(rank, N_ranks):
             latitude=station[1],
             longitude=station[2],
             elevation=station[3],
-            minimum_altitude_angle=altitude_angle,
+            minimum_altitude_angle=5.0,
         )
         # paseos_instance.add_known_actor(gs_actor)
         groundstation_actors.append(gs_actor)
-    
-    
-    # Define a comm-sat as additional ground station actor
-    #   GEO communications satellite
-    #   Spacecraft: EDRS-A (https://connectivity.esa.int/european-data-relay-satellite-system-edrs-overview)
-    #   Altitude: 35786 km
-    #   Inclination: 0 degrees
-    #   Bandwith:
-    #     - Optical inter-satellite link: 1,800,000 kbps (1.8 Gbit/s)
-    #     - Ka-band inter-satellite link: 300,000 kbps (300 Mbit/s) ​​
-    altitude_geo = 35786*1000
-    inclination_geo = 0
-    n_Planes_geo = 1
-    nSats_geo = 1
-    comms_sat,comm_sat_pos_and_v,_ = get_constellation(altitude_geo,inclination_geo,n_Planes_geo,nSats_geo,t0)
-    pos,v = comm_sat_pos_and_v[0]
-    sat_actor = ActorBuilder.get_actor_scaffold(name="comms_1",actor_type=SpacecraftActor, epoch=t0)
-    ActorBuilder.set_orbit(actor=sat_actor,position=pos,velocity=v,epoch=t0,central_body=earth)
-    ActorBuilder.add_comm_device(actor=sat_actor,device_name="Link1",bandwidth_in_kbps=1800000)    
-    instance = paseos.init_sim(local_actor=sat_actor)
-    groundstation_actors.append(instance)
+    return groundstation_actors
 
-    return (paseos_instance, local_actor, groundstation_actors)
+
+def get_disaster_site(t0):
+    """Creates a list disaster sites modeled as groundstations.
+    Currently including:
+        - EMSR284: Ytornio, Finland. (2018-May-18 03:21:00 UTC)
+        (https://emergency.copernicus.eu/mapping/system/files/components/EMSR284_01YLITORNIONORTHERN_01DELINEATION_MONIT01_v1_300dpi.pdf)
+
+    Args:
+        t0 (pk.epoch): Initial time.
+
+    Returns:
+        disaster_site_actors (List of GroundstationActor): List of disaster sites.
+    """
+    # Define ground stations
+    disaster_sites = [
+        ["EMSR284", 66.30893, 23.67734, 127.0]
+    ]
+    disaster_site_actors = []
+    for site in disaster_sites:
+        gs_actor = ActorBuilder.get_actor_scaffold(
+            name=site[0], actor_type=GroundstationActor, epoch=t0
+        )
+        ActorBuilder.set_ground_station_location(
+            gs_actor,
+            latitude=site[1],
+            longitude=site[2],
+            elevation=site[3],
+            minimum_altitude_angle=78.08,
+        )
+        disaster_site_actors.append(gs_actor)
+    return disaster_site_actors
