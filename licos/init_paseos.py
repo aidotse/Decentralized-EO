@@ -242,9 +242,9 @@ def init_paseos_scenario_low_altitude_constellation_with_fl_and_relay(rank, N_ra
     earth = pk.planet.jpl_lp("earth")  # define our central body
 
     # Compute the orbit of each rank
-    #   Spacecraft: Dove-2 (https://fr.wikipedia.org/wiki/Dove_(satellite))
-    altitude = 410 * 1000  # altitude above the Earth's ground [m]
-    inclination = 51.66    # inclination of the orbit
+    #   Spacecraft: SKYSAT-C11 (https://www.n2yo.com/satellite/?s=42987 (accessed: 2024-07-05 10:31:40))
+    altitude = 452 * 1000  # altitude above the Earth's ground [m]
+    inclination = 97.40    # inclination of the orbit
     nPlanes = 1            # the number of orbital planes
     nSats = N_ranks        # the number of satellites per orbital plane
     planet_list, sats_pos_and_v, _ = get_constellation(
