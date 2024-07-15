@@ -1,7 +1,8 @@
 import pykep as pk
 import paseos
 from paseos import ActorBuilder, SpacecraftActor, GroundstationActor
-from licos.get_constellation import get_constellation
+
+from .get_constellation import get_constellation
 
 
 def init_paseos_scenario_sentinel2_with_fl(rank, N_ranks):
@@ -118,7 +119,6 @@ def init_paseos_scenario_walker_constellation_with_fl(rank, N_ranks):
     return (paseos_instance, local_actor, groundstation_actors, disaster_site_actors)
 
 
-
 def init_paseos_scenario_low_altitude_constellation_with_fl_and_relay(rank, N_ranks):
     """
     This scenario considers a number of satellites setup
@@ -200,6 +200,9 @@ def init_paseos_scenario_low_altitude_constellation_with_fl_and_relay(rank, N_ra
     instance = paseos.init_sim(local_actor=sat_actor)
     groundstation_actors.append(instance)
     return (paseos_instance, local_actor, groundstation_actors, disaster_site_actors)
+
+
+
 
 
 def get_S2_satellite_scaffold(local_actor):
@@ -319,3 +322,4 @@ def initialize_paseos_instance(t0, local_actor):
     cfg = paseos.load_default_cfg()  # loading cfg to modify defaults
     cfg.sim.start_time = t0.mjd2000 * pk.DAY2SEC  # convert epoch to seconds
     return paseos.init_sim(local_actor=local_actor, cfg=cfg)
+
