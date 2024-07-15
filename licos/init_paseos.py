@@ -2,7 +2,7 @@ import pykep as pk
 import paseos
 from paseos import ActorBuilder, SpacecraftActor, GroundstationActor
 
-from get_constellation import get_constellation
+from .get_constellation import get_constellation
 
 
 def init_paseos_scenario_sentinel2_with_fl(rank, N_ranks):
@@ -16,7 +16,7 @@ def init_paseos_scenario_sentinel2_with_fl(rank, N_ranks):
         N_ranks (int): Number of ranks.
 
     Returns:
-        paseos_instance, local_actor, groundstation_actors
+        paseos_instance, local_actor, groundstation_actors, disaster_site_actors
     """
 
     # Starting date of our simulation
@@ -54,9 +54,8 @@ def init_paseos_scenario_sentinel2_with_fl(rank, N_ranks):
 
     # Define groundstations and disaster site
     groundstation_actors = get_groundstations(t0)
-    disaster_site = get_disaster_site(t0)
-    groundstation_actors.append(disaster_site[0]) 
-    return (paseos_instance, local_actor, groundstation_actors)
+    disaster_site_actors = get_disaster_site(t0)
+    return (paseos_instance, local_actor, groundstation_actors, disaster_site_actors)
 
 
 def init_paseos_scenario_walker_constellation_with_fl(rank, N_ranks):
@@ -71,7 +70,7 @@ def init_paseos_scenario_walker_constellation_with_fl(rank, N_ranks):
         N_ranks (int): Number of ranks.
 
     Returns:
-        paseos_instance, local_actor, groundstation_actors
+        paseos_instance, local_actor, groundstation_actors, disaster_site_actors
     """
     # Starting date of our simulation
     t0 = pk.epoch_from_string("2018-May-18 03:21:00")  # starting date of our simulation
@@ -116,10 +115,8 @@ def init_paseos_scenario_walker_constellation_with_fl(rank, N_ranks):
 
     # Define groundstations and disaster site
     groundstation_actors = get_groundstations(t0)
-    disaster_site = get_disaster_site(t0)
-    groundstation_actors.append(disaster_site[0]) 
-
-    return (paseos_instance, local_actor, groundstation_actors)
+    disaster_site_actors = get_disaster_site(t0)
+    return (paseos_instance, local_actor, groundstation_actors, disaster_site_actors)
 
 
 def init_paseos_scenario_low_altitude_constellation_with_fl_and_relay(rank, N_ranks):
@@ -137,7 +134,7 @@ def init_paseos_scenario_low_altitude_constellation_with_fl_and_relay(rank, N_ra
         N_ranks (int): Number of ranks.
 
     Returns:
-        paseos_instance, local_actor, groundstation_actors
+        paseos_instance, local_actor, groundstation_actors, disaster_site_actors
     """
     # Starting date of our simulation
     t0 = pk.epoch_from_string("2018-May-18 03:21:00")  # starting date of our simulation
@@ -180,10 +177,9 @@ def init_paseos_scenario_low_altitude_constellation_with_fl_and_relay(rank, N_ra
     paseos_instance = initialize_paseos_instance(t0, local_actor)
     print(f"Rank {rank} set up its PASEOS instance for its local actor {local_actor}")
 
-    # Define ground stations and disaster site
+    # Define groundstations and disaster site
     groundstation_actors = get_groundstations(t0)
-    disaster_site = get_disaster_site(t0)
-    groundstation_actors.append(disaster_site[0]) 
+    disaster_site_actors = get_disaster_site(t0)
     
     # Define a relay satellite with comm-device:
     #   Spacecraft: Eutelsat 9B (https://connectivity.esa.int/european-data-relay-satellite-system-edrs-overview)
@@ -203,7 +199,8 @@ def init_paseos_scenario_low_altitude_constellation_with_fl_and_relay(rank, N_ra
     # Initialize sim and add to groundstation list
     instance = paseos.init_sim(local_actor=sat_actor)
     groundstation_actors.append(instance)
-    return (paseos_instance, local_actor, groundstation_actors)
+    return (paseos_instance, local_actor, groundstation_actors, disaster_site_actors)
+
 
 
 
@@ -293,7 +290,7 @@ def get_disaster_site(t0):
     """
     # Define ground stations
     disaster_sites = [
-        ["EMSR284", 66.30893, 23.67734, 127.0]
+        ["Flood", 66.30893, 23.67734, 127.0]
     ]
     disaster_site_actors = []
     for site in disaster_sites:
