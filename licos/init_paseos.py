@@ -121,7 +121,7 @@ def init_paseos_scenario_0(rank, N_ranks):
         line2 = "2 40697  98.5684 261.2278 0001234  95.4779 264.6545 14.30817758471926"
 
     else:
-        # Sentinel-2A Orbit: (accessed 2024-07-05 14:36:20 CET at https://www.n2yo.com/satellite/?s=42063#results)
+        # Sentinel-2B Orbit: (accessed 2024-07-05 14:36:20 CET at https://www.n2yo.com/satellite/?s=42063#results)
         #   (Period: 98.6 [min], Inclination: 98.6 [deg], Apogee: 797.0 [km], Perigee: 795.2 [km])
         line1 = "1 42063U 17013A   24187.17957938  .00000220  00000-0  10062-3 0  9994"
         line2 = "2 42063  98.5690 261.1892 0001177  94.9260 265.2057 14.30820356382832"
