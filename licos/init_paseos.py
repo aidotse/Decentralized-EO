@@ -181,8 +181,8 @@ def init_paseos_scenario_0(rank, N_ranks):
         ["Disaster Site", 66.30893, 23.67734, 127.0]
     ]
     groundstation_actors = []
-    for i, station in enumerate(stations):
-        if i == 3: 
+    for station in stations:
+        if station[0] == "Disaster Site": 
             altitude_angle=78.08 
         else: 
             altitude_angle=5.0
@@ -295,8 +295,8 @@ def init_paseos_scenario_1(rank, N_ranks):
         ["Disaster Site", 66.30893, 23.67734, 127.0]
     ]
     groundstation_actors = []
-    for i, station in enumerate(stations):
-        if i == 3: 
+    for station in stations:
+        if station[0] == "Disaster Site": 
             altitude_angle=78.08 
         else: 
             altitude_angle=5.0
@@ -414,8 +414,8 @@ def init_paseos_scenario_2(rank, N_ranks):
         ["Disaster Site", 66.30893, 23.67734, 127.0]
     ]
     groundstation_actors = []
-    for i, station in enumerate(stations):
-        if i == 3:  
+    for station in stations:
+        if station[0] == "Disaster Site": 
             altitude_angle=78.08 
         else: 
             altitude_angle=5.0
