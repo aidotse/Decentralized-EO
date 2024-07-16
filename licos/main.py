@@ -1,47 +1,30 @@
 import sys
 import os
 import warnings
+import time
 from pathlib import Path
-import argparse
 import torch
-from torch import nn
-from torch.optim import Adam
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 import numpy as np
 import pickle
 import toml
 from dotmap import DotMap
 from mpi4py import MPI
 import pykep as pk
+import paseos
 
 # Import additional necessary modules
 from create_plots import create_plots
-from init_paseos import init_paseos
+from init_paseos import init_paseos_scenario_sentinel2_with_fl, init_paseos_scenario_walker_constellation_with_fl, init_paseos_scenario_low_altitude_constellation_with_fl_and_relay
 from actor_logic import constraint_func, decide_on_activity, perform_activity
-from utils import get_savepath_str
-
-
-import time
-sys.path.append("..") # to get the root directory
-time_per_batch_list = []
-
-# From fine_tune.py
-import os
-import pickle
-import numpy as np
-import torch
-from torch.utils.data import Dataset
-import sys
-import paseos
-
-sys.path.append(os.path.expanduser('~/Decentralized-EO'))
-
-from mobile_sam import sam_model_registry, SamAutomaticMaskGenerator, SamPredictor
+from utils import get_savepath_str, save_checkpoint
 from train import train_one_batch, init_training, eval_test_set
 from federation_utils import update_central_model
 
-torch.cuda.empty_cache()
+sys.path.append("..") # to get the root directory
+sys.path.append(os.path.expanduser('~/Decentralized-EO'))
 
+torch.cuda.empty_cache()
 print(f"CUDA available: {torch.cuda.is_available()}")
 
 class SatelliteTileDataset(Dataset):
@@ -90,7 +73,6 @@ def main(cfg):
     time_since_last_update = 0
     total_simulation_time = 0
     standby_period = 900  # how long to standby if necessary
-    #MPI_sync_period = 10
     MPI_sync_period = 600  # After how many seconds we wait synchronize instance clocks
     cfg.save_path = get_savepath_str(cfg)
 
@@ -99,13 +81,12 @@ def main(cfg):
     train_losses = []
     local_time_at_test = []
     time_at_train = []
+    time_per_batch_list = []
 
     def constraint_function():
-        return constraint_func(paseos_instance, groundstations)
+        return constraint_func(paseos_instance, actors_to_track)
 
     paseos.set_log_level("INFO")
-    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    #device = "cuda:" + str(rank) if cfg.cuda and torch.cuda.is_available() else "cpu" 
     device = (
     "cuda:{}".format(rank % torch.cuda.device_count())
     if cfg.cuda and torch.cuda.is_available()
@@ -148,8 +129,10 @@ def main(cfg):
     sys.stdout.flush()
 
     # Init paseos
-    paseos_instance, local_actor, groundstations = init_paseos(rank, comm.Get_size())
+    paseos_instance, local_actor, groundstations, disaster_sites = init_paseos_scenario_walker_constellation_with_fl(rank, comm.Get_size())
+    actors_to_track = groundstations + disaster_sites
     time_of_last_sync = local_actor.local_time.mjd2000 * pk.DAY2SEC
+    Path(cfg.save_path + "/Disaster_checkpoints/").mkdir(parents=True, exist_ok=True)
     
     print(f"Rank {rank} - Init PASEOS", flush=True)
     sys.stdout.flush()
@@ -157,7 +140,6 @@ def main(cfg):
     if plot and rank == 0:
         plotter = paseos.plot(paseos_instance, paseos.PlotType.SpacePlot)
     
-
     ################################################################################
     # Simulation loop
     best_loss = float("inf")
@@ -201,11 +183,59 @@ def main(cfg):
 
         ################################################################################
         # Perform  what was the decided on first in paseos and than on the rank, either
+        # A) Inference at flood event
         # A) Exchange model with ground
         # B) Traing model on a batch
         # C) Standby to cool down / recharge
 
-        if activity == "Model_update":
+        if activity == "Inference":
+            print(
+                f"Rank {rank} will perform inference above "
+                + str(list(paseos_instance.known_actors.items())[0][0])
+                + " at "
+                + str(paseos_instance.local_actor.local_time)
+            )
+            # 1) Model inference and storing checkpoint in PASEOS
+            perform_activity(
+                activity,
+                power_consumption,
+                paseos_instance,
+                cfg.time_for_comms,
+                constraint_function,
+            )
+            
+            # 2) Evaluate test set
+            print(f"Rank {rank} - Test above flood site.")
+            loss, is_best, best_loss = eval_test_set(
+                rank,
+                optimizer,
+                batch_idx,
+                net,
+                criterion,
+                test_losses,
+                test_dataloader,
+                local_time_at_test,
+                paseos_instance,
+                lr_scheduler,
+                best_loss,
+                transform,
+            )
+
+            # Push the time of last step slightly beyond to be distinguishable in plots
+            local_time_at_test[-1] += 10
+
+            # 3) Store checkpoint of model performance above flood site
+            local_sd = net.state_dict()
+            save_checkpoint({
+                    "batch_idx": batch_idx,
+                    "state_dict": local_sd,
+                    "loss": best_loss,
+                    "local_time": paseos_instance._state.time},
+                False,
+                filename=cfg.save_path + f"/Disaster_checkpoints/Disaster_visit_{pk.epoch(paseos_instance._state.time * pk.SEC2DAY)}.pth.tar",
+            )
+        
+        elif activity == "Model_update":
             print(
                 f"Rank {rank} will update with GS "
                 + str(list(paseos_instance.known_actors.items())[0][0])
@@ -269,7 +299,7 @@ def main(cfg):
             )
 
             # Push the time of last step slightly beyond to be distinguishable in plots
-            #local_time_at_test[-1] += 10
+            local_time_at_test[-1] += 10
 
         elif activity == "Training":
             # 1) Model training cost in PASEOS
