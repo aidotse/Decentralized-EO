@@ -96,6 +96,7 @@ def main(cfg):
     train_losses = []
     local_time_at_test = []
     time_at_train = []
+    time_per_inference = []
 
     def constraint_function():
         return constraint_func(paseos_instance, actors_to_track)
@@ -214,12 +215,13 @@ def main(cfg):
                 activity,
                 power_consumption,
                 paseos_instance,
-                cfg.time_for_comms,
+                cfg.time_per_inference,
                 constraint_function,
             )
             
             # 2) Evaluate test set
             print(f"Rank {rank} - Test above flood site.")
+            start_inf = time.time()
             loss, is_best, best_loss = eval_test_set(
                 rank,
                 optimizer,
@@ -234,6 +236,8 @@ def main(cfg):
                 best_loss,
                 transform,
             )
+            end_inf = time.time()
+            time_per_inference.append(end_inf - start_inf)
 
             # Push the time of last step slightly beyond to be distinguishable in plots
             local_time_at_test[-1] += 10
@@ -261,7 +265,7 @@ def main(cfg):
                 activity,
                 power_consumption,
                 paseos_instance,
-                cfg.time_for_comms,
+                cfg.time_for_comms + (2*cfg.time_per_inference),
                 constraint_function,
             )
 
@@ -372,6 +376,11 @@ def main(cfg):
     create_plots(paseos_instances=[paseos_instance], cfg=cfg, rank=rank)  
 
     print(f"Rank {rank} waiting to finish.")
+    np.savetxt(
+        cfg.save_path + "/time_per_inference" + ".csv",
+        np.array(time_per_inference),
+        delimiter=",",
+    )
     np.savetxt(
         cfg.save_path + "/loss_rank" + str(rank) + ".csv",
         np.array(test_losses),
