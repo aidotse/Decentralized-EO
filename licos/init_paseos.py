@@ -46,7 +46,7 @@ def init_paseos_scenario_sentinel2_with_fl(rank, N_ranks):
     ActorBuilder.set_TLE(local_actor, line1, line2)
 
     # Add devices and parameters for physical simulation
-    get_S2_satellite_scaffold(local_actor)
+    set_S2_satellite_scaffold(local_actor)
 
     # Initialize paseos instance
     paseos_instance = initialize_paseos_instance(t0, local_actor)
@@ -107,7 +107,7 @@ def init_paseos_scenario_walker_constellation_with_fl(rank, N_ranks):
     )
 
     # Add devices and parameters for physical simulation
-    get_S2_satellite_scaffold(local_actor)
+    set_S2_satellite_scaffold(local_actor)
 
     # Initialize paseos instance
     paseos_instance = initialize_paseos_instance(t0, local_actor)
@@ -171,7 +171,7 @@ def init_paseos_scenario_low_altitude_constellation_with_fl_and_relay(rank, N_ra
     )
 
     # Add devices and parameters for physical simulation
-    get_S2_satellite_scaffold(local_actor)
+    set_S2_satellite_scaffold(local_actor)
 
     # Initialize paseos instance
     paseos_instance = initialize_paseos_instance(t0, local_actor)
@@ -205,7 +205,7 @@ def init_paseos_scenario_low_altitude_constellation_with_fl_and_relay(rank, N_ra
 
 
 
-def get_S2_satellite_scaffold(local_actor):
+def set_S2_satellite_scaffold(local_actor):
     """Adds the necessary devices and parameters to the
     the provided actor according to Sentinel-2 specifications.
 
