@@ -97,6 +97,7 @@ def main(cfg):
     local_time_at_test = []
     time_at_train = []
     time_per_inference = []
+    time_at_FL = []
 
     def constraint_function():
         return constraint_func(paseos_instance, actors_to_track)
@@ -318,6 +319,7 @@ def main(cfg):
 
             # Push the time of last step slightly beyond to be distinguishable in plots
             local_time_at_test[-1] += 10
+            time_at_FL.append(paseos_instance._state.time)
             
         elif activity == "Training":
             # 1) Model training cost in PASEOS
@@ -377,7 +379,12 @@ def main(cfg):
 
     print(f"Rank {rank} waiting to finish.")
     np.savetxt(
-        cfg.save_path + "/time_per_inference" + ".csv",
+        cfg.save_path + "/time_at_comms" + str(rank) + ".csv",
+        np.array(time_at_FL),
+        delimiter=",",
+    )
+    np.savetxt(
+        cfg.save_path + "/time_per_inference" + str(rank) + ".csv",
         np.array(time_per_inference),
         delimiter=",",
     )
@@ -397,7 +404,7 @@ def main(cfg):
         delimiter=",",
     )
     np.savetxt(
-        cfg.save_path + "/time_per_batch_training" + ".csv",
+        cfg.save_path + "/time_per_batch_training" + str(rank) + ".csv",
         np.array(time_per_batch_list),
         delimiter=",",
     )
