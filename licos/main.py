@@ -145,7 +145,11 @@ def main(cfg):
     sys.stdout.flush()
 
     # Init paseos
-    paseos_instance, local_actor, groundstations, disaster_sites = init_paseos_scenario_walker_constellation_with_fl(rank, comm.Get_size())
+    if cfg.scenario == 1:
+        paseos_instance, local_actor, groundstations, disaster_sites = init_paseos_scenario_walker_constellation_with_fl(rank, comm.Get_size())
+    elif cfg.scenario == 2:
+        paseos_instance, local_actor, groundstations, disaster_sites = init_paseos_scenario_low_altitude_constellation_with_fl_and_relay(rank, comm.Get_size())
+   
     actors_to_track = disaster_sites + groundstations
     time_of_last_sync = local_actor.local_time.mjd2000 * pk.DAY2SEC
     Path(cfg.save_path + "/Disaster_checkpoints/").mkdir(parents=True, exist_ok=True)

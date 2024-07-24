@@ -3,6 +3,8 @@
 #  capturing data and training onboard, with 3 ground stations federating the model and 1 comm-satellite managing ISL to 
 #  exchange data between satellites.
 
+scenario = 2
+
 # Model architecture
 model = "vit_t"
 

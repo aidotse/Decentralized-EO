@@ -1,6 +1,8 @@
 # Scenario 1: Default FL 
 # In this scenario we evaluate the latency when considering a system of 8 satellites in sentinel-2-like orbit capturing data and training onboard, with 3 ground stations federating the model.
 
+scenario = 1
+
 # Model architecture
 model = "vit_t"
 
